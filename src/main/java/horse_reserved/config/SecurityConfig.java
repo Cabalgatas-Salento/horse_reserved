@@ -43,13 +43,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/rutas/public/**").permitAll()
 
                         // Endpoints que requieren autenticación
-                        .requestMatchers("/api/reservas/**").hasAnyAuthority("cliente", "operador", "administrador")
-                        .requestMatchers("/api/salidas/**").hasAnyAuthority("operador", "administrador")
+                        .requestMatchers("/api/reservas/**").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
+                        .requestMatchers("/api/salidas/**").hasAnyAuthority("OPERADOR", "ADMINISTRADOR")
 
                         // Endpoints solo para administradores
-                        .requestMatchers("/api/admin/**").hasAuthority("administrador")
-                        .requestMatchers("/api/rutas/**").hasAuthority("administrador")
-                        .requestMatchers("/api/recursos/**").hasAuthority("administrador")
+                        .requestMatchers("/api/admin/**").hasAuthority("ADMINISTRADOR")
+                        .requestMatchers("/api/rutas/**").hasAuthority("ADMINISTRADOR")
+                        .requestMatchers("/api/recursos/**").hasAuthority("ADMINISTRADOR")
 
                         // Cualquier otra petición requiere autenticación
                         .anyRequest().authenticated()

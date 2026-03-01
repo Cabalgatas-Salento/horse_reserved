@@ -26,7 +26,8 @@ public class Participante {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "reservacion_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reservacion_id", nullable = false)
     private Reserva reserva;
 
     @NotBlank
@@ -37,7 +38,6 @@ public class Participante {
     @Column(name = "primer_apellido", nullable = false, length = 100)
     private String primerApellido;
 
-    @NotBlank
     @Column(name = "tipo_documento", nullable = false, length = 50)
     @Enumerated(EnumType.STRING)
     private TipoDocumento tipoDocumento;

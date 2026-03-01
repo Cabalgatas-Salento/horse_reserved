@@ -52,8 +52,7 @@ public class Usuario implements UserDetails {
     @Column(name = "email", nullable = false, unique = true, length = 200)
     private String email;
 
-    @NotBlank
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(name = "password_hash")
     private String passwordHash;
 
     @NotBlank

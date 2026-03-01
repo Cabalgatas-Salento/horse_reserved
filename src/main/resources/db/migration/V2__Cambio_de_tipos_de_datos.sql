@@ -35,7 +35,7 @@ ALTER TABLE usuarios
 
 ALTER TABLE usuarios
     ADD CONSTRAINT chk_role
-        CHECK (role IN ('cliente', 'operador', 'administrador'));
+        CHECK (role IN ('CLIENTE', 'OPERADOR', 'ADMINISTRADOR'));
 
 ALTER TABLE reservaciones
     ADD CONSTRAINT chk_estado_reservacion

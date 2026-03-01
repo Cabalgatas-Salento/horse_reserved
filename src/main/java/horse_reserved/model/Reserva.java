@@ -65,7 +65,7 @@ public class Reserva {
      * @return
      */
     public boolean agregarParticipante(Participante participante) {
-        if(participantes.contains(participante)){
+        if(!participantes.contains(participante)){
             participantes.add(participante);
             participante.setReserva(this);
             return true;
