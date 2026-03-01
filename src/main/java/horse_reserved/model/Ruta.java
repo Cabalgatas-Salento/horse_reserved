@@ -1,0 +1,82 @@
+package horse_reserved.model;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Positive;
+import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "rutas")
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Getter @Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+/**
+ * Clase que representa las rutas turisticas sobre las que se realizan salidas en caballo
+ */
+public class Ruta {
+    @EqualsAndHashCode.Include
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name="nombre", nullable=false, length=150)
+    private String nombre;
+
+    @Column(name="descripcion", nullable=false)
+    private String descripcion;
+
+    @Column(name="dificultad", nullable = false, length= 50)
+    private String dificultad;
+
+    @Positive
+    @Column(name="duracion_minutos", nullable = false)
+    private int duracionMinutos;
+
+    @Positive
+    @Column(name="max_caballos", nullable = false)
+    private int maxCaballos;
+
+    @Positive
+    @Column(name="min_guias", nullable = false)
+    private int minGuias;
+
+    @Column(name="image_url", nullable = false, length = 500)
+    private String urlImagen;
+
+    @Column(name="is_active", nullable = false)
+    private boolean activa;
+
+    /**
+     * Define la relacion de 1 a muchos entre Ruta y salidas
+     */
+    @Builder.Default
+    @OneToMany(mappedBy = "ruta", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Salida> salidas = new ArrayList<>();
+
+    /**
+     * Metodo para agregar una salida a una ruta
+     * @param salida
+     * @return
+     */
+    public boolean agregarSalida(Salida salida){
+        if(!salidas.contains(salida)){
+            salidas.add(salida);
+            salida.setRuta(this);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Metodo para eliminar una salida de una ruta
+     * @param salida
+     * @return
+     */
+    public boolean eliminarSalida(Salida salida){
+        return salidas.remove(salida);
+    }
+}

@@ -14,6 +14,9 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * Clase que sirve para el token de recuperar contraseña
+ */
 public class PasswordResetToken {
 
     @Id
