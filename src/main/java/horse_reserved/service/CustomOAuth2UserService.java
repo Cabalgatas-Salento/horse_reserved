@@ -25,6 +25,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UsuarioRepository usuarioRepository;
 
+    /**
+     * Metodo para cargar la informacion del usuario al iniciar sesion con google
+     * @param userRequest
+     * @return
+     * @throws OAuth2AuthenticationException
+     */
     @Override
     @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -39,6 +45,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
     }
 
+    /**
+     *Metodo que define si se registra o se inicia sesion al iniciar sesion con google
+     * @param userRequest
+     * @param oAuth2User
+     * @return
+     */
     private OAuth2User processOAuth2User(OAuth2UserRequest userRequest, OAuth2User oAuth2User) {
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
 
@@ -68,7 +80,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return oAuth2User;
     }
 
-    //Metodo para extraer los apellidos de una cuenta de Google
+    /**
+     * Metodo para extraer los apellidos de una cuenta de Google
+     * @param nombreCompleto
+     * @return
+     */
     private String[] extraerApellidos(String nombreCompleto) {
         String[] partes = nombreCompleto.trim().split("\\s+");
 
@@ -87,6 +103,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return new String[]{primerApellido, segundoApellido};
     }
 
+    /**
+     * Metodo para registrar un usuario despues de iniciar sesion con google
+     * @param oAuth2UserInfo
+     * @return
+     */
     private Usuario registerNewUser(OAuth2UserInfo oAuth2UserInfo) {
         // Extraer apellidos del nombre completo
         String[] apellidos = extraerApellidos(oAuth2UserInfo.getName());
@@ -107,7 +128,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 .primerNombre(primerNombre)
                 .primerApellido(primerApellido)
                 .email(oAuth2UserInfo.getEmail())
-                .passwordHash("") // No hay contraseña para usuarios OAuth2
+                .passwordHash(null) // No hay contraseña para usuarios OAuth2
                 .tipoDocumento(TipoDocumento.CEDULA) // Por defecto, despues se debe cambiar
                 .documento("OAUTH2-" + oAuth2UserInfo.getId()) // Temporal
                 .role(Rol.CLIENTE)
@@ -117,6 +138,13 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return usuarioRepository.save(usuario);
     }
 
+    /**
+     * metodo para actualizar la informacion de un usuario despues de iniciar sesion
+     * con google de ser necesario
+     * @param usuario
+     * @param oAuth2UserInfo
+     * @return
+     */
     private Usuario updateExistingUser(Usuario usuario, OAuth2UserInfo oAuth2UserInfo) {
         // Actualizar información si es necesario
         String[] apellidos = extraerApellidos(oAuth2UserInfo.getName());

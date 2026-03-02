@@ -1,20 +1,22 @@
 package horse_reserved.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 @Entity
 @Table(name = "usuarios")
-@Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Getter @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,38 +25,60 @@ import java.util.List;
  */
 public class Usuario implements UserDetails {
 
+    @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank
     @Column(name = "primer_nombre", nullable = false, length = 100)
     private String primerNombre;
 
+    @NotBlank
     @Column(name = "primer_apellido", nullable = false, length = 100)
     private String primerApellido;
 
-    @Column(name = "tipo_documento", nullable = false)
+    @Column(name = "tipo_documento", nullable = false, length = 50)
     @Enumerated(EnumType.STRING)
     private TipoDocumento tipoDocumento;
 
-    @Column(nullable = false, length = 50)
+    @NotBlank
+    @Positive
+    @Column(name = "documento", nullable = false, length = 50)
     private String documento;
 
-    @Column(nullable = false, unique = true, length = 200)
+    @Email
+    @NotBlank
+    @Column(name = "email", nullable = false, unique = true, length = 200)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(name = "password_hash")
     private String passwordHash;
 
-    @Column(length = 20)
+    @NotBlank
+    @Column(name = "telefono", length = 20)
     private String telefono;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
+    @Column(name = "role", nullable = false, length = 50)
     private Rol role;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    /**
+     * Define una relacion de uno a muchos entre Cliente y reservas
+     */
+    @Builder.Default
+    @OneToMany(mappedBy = "cliente")
+    private List<Reserva> reservacionesComoCliente = new ArrayList<>();
+
+    /**
+     * Define una relacion de uno a muchos entre Operador y reservas
+     */
+    @Builder.Default
+    @OneToMany(mappedBy = "operador")
+    private List<Reserva> reservacionesComoOperador = new ArrayList<>();
 
     // Implementación de UserDetails
 
