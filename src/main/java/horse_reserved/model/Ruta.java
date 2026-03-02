@@ -44,7 +44,7 @@ public class Ruta {
     @Column(name="min_guias", nullable = false)
     private int minGuias;
 
-    @Column(name="image_url", nullable = false, length = 500)
+    @Column(name="image_url", length = 500)
     private String urlImagen;
 
     @Column(name="is_active", nullable = false)

@@ -1,7 +1,6 @@
 package horse_reserved.model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
@@ -26,6 +25,9 @@ public class Participante {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * Define la relacion de muchos a 1 entre participantes y reserva
+     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reservacion_id", nullable = false)
     private Reserva reserva;
@@ -48,11 +50,11 @@ public class Participante {
 
     @Positive
     @Column(name = "edad", nullable = false)
-    private int edad;
+    private short edad;
 
     @Positive
     @Column(name = "altura_cm", nullable = false)
-    private int cmAltura;
+    private short cmAltura;
 
     @Positive
     @Digits(integer = 3, fraction = 2)
