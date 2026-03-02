@@ -12,6 +12,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -125,6 +127,13 @@ public class ReservaService {
 
         if ("completado".equalsIgnoreCase(reserva.getEstado())) {
             throw new BusinessRuleException("No puedes cancelar una reserva completada");
+        }
+
+        if (Duration.between(
+                reserva.getSalida().getTiempoInicio(), LocalTime.now()
+        ).toMinutes() <= 60
+        ){
+            throw new BusinessRuleException("La reserva no puede cancelarse porque falta menos de una hora para su inicio");
         }
 
         reserva.setEstado("cancelado");
