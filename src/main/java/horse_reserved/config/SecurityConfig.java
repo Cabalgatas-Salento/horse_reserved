@@ -3,6 +3,7 @@ package horse_reserved.config;
 import horse_reserved.security.JwtAuthenticationFilter;
 import horse_reserved.security.OAuth2AuthenticationFailureHandler;
 import horse_reserved.security.OAuth2AuthenticationSuccessHandler;
+import horse_reserved.security.RateLimitFilter;
 import horse_reserved.service.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -28,6 +29,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final UserDetailsService userDetailsService;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
@@ -43,7 +45,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/rutas/public/**").permitAll()
 
                         // Endpoints que requieren autenticación
-                        .requestMatchers("/api/reservas/**").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
+                        .requestMatchers("/api/reservaciones/**").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
                         .requestMatchers("/api/salidas/**").hasAnyAuthority("OPERADOR", "ADMINISTRADOR")
 
                         // Endpoints solo para administradores
@@ -72,6 +74,7 @@ public class SecurityConfig {
                         .failureHandler(oAuth2AuthenticationFailureHandler)
                 )
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
