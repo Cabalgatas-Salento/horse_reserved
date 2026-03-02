@@ -1,14 +1,11 @@
 package horse_reserved.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import horse_reserved.dto.response.ErrorResponse;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -20,10 +17,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-@RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
-
-    private final ObjectMapper objectMapper;
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
 
@@ -57,23 +51,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (bucket.tryConsume(1)) {
             filterChain.doFilter(request, response);
         } else {
-            long waitSeconds = bucket.getAvailableTokens() >= 0
-                    ? config[2]
-                    : config[2];
-
             response.setStatus(429);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.setHeader("Retry-After", String.valueOf(waitSeconds));
-
-            ErrorResponse error = ErrorResponse.builder()
-                    .timestamp(LocalDateTime.now())
-                    .status(429)
-                    .error("Too Many Requests")
-                    .message("Demasiadas solicitudes. Por favor, intenta de nuevo más tarde.")
-                    .path(path)
-                    .build();
-
-            objectMapper.writeValue(response.getWriter(), error);
+            response.setCharacterEncoding("UTF-8");
+            response.setHeader("Retry-After", String.valueOf(config[2]));
+            response.getWriter().write(buildErrorJson(path));
         }
     }
 
@@ -91,5 +73,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 .refillIntervally(config[1], Duration.ofSeconds(config[2]))
                 .build();
         return Bucket.builder().addLimit(limit).build();
+    }
+
+    private String buildErrorJson(String path) {
+        return String.format(
+                "{\"timestamp\":\"%s\",\"status\":429,\"error\":\"Too Many Requests\"," +
+                "\"message\":\"Demasiadas solicitudes. Por favor, intenta de nuevo más tarde.\",\"path\":\"%s\"}",
+                LocalDateTime.now(), path
+        );
     }
 }
