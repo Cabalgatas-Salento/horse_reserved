@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -98,6 +99,7 @@ public class PasswordResetService {
 
         Usuario usuario = resetToken.getUsuario();
         usuario.setPasswordHash(passwordEncoder.encode(nuevaPassword));
+        usuario.setPasswordChangedAt(Instant.now());
         usuarioRepository.save(usuario);
 
         resetToken.setUsed(true);

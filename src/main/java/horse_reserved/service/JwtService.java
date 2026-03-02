@@ -1,5 +1,6 @@
 package horse_reserved.service;
 
+import horse_reserved.model.Usuario;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -56,11 +57,21 @@ public class JwtService {
     }
 
     /**
-     * Valida si un token es válido para un usuario
+     * Valida si un token es válido para un usuario.
+     * Rechaza tokens emitidos antes del último cambio de contraseña.
      */
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        if (!username.equals(userDetails.getUsername()) || isTokenExpired(token)) {
+            return false;
+        }
+        if (userDetails instanceof Usuario usuario) {
+            Date issuedAt = extractClaim(token, Claims::getIssuedAt);
+            if (issuedAt != null && issuedAt.toInstant().isBefore(usuario.getPasswordChangedAt())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

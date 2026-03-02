@@ -9,6 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -65,6 +66,10 @@ public class Usuario implements UserDetails {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    @Builder.Default
+    @Column(name = "password_changed_at", nullable = false)
+    private Instant passwordChangedAt = Instant.EPOCH;
 
     /**
      * Define una relacion de uno a muchos entre Cliente y reservas
