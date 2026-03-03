@@ -2,6 +2,7 @@ package horse_reserved.service;
 
 import horse_reserved.dto.request.CreateReservaRequest;
 import horse_reserved.dto.request.ParticipanteRequest;
+import horse_reserved.dto.request.UpdateReservaRequest;
 import horse_reserved.dto.response.ReservaResponse;
 import horse_reserved.exception.*;
 import horse_reserved.model.*;
@@ -42,7 +43,24 @@ public class ReservaService {
     public ReservaResponse crearReserva(CreateReservaRequest request) {
         validarRequestCrear(request);
 
-        Usuario cliente = usuarioAutenticado();
+        Usuario autenticado = usuarioAutenticado();
+
+        Usuario cliente;
+        Usuario operador;
+        if (esOperador(autenticado)) {
+            if (request.getClienteId() == null) {
+                throw new BusinessRuleException("El operador debe especificar el clienteId al crear una reserva");
+            }
+            cliente = usuarioRepository.findById(request.getClienteId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado: " + request.getClienteId()));
+            if (cliente.getRole() != Rol.CLIENTE) {
+                throw new BusinessRuleException("El usuario especificado no es un cliente");
+            }
+            operador = autenticado;
+        } else {
+            cliente = autenticado;
+            operador = null;
+        }
 
         Salida salida = salidaRepository
                 .findProgramadaByRutaAndFechaAndHora(request.getRutaId(), request.getFecha(), request.getHoraInicio())
@@ -58,7 +76,7 @@ public class ReservaService {
         Reserva reserva = Reserva.builder()
                 .salida(salida)
                 .cliente(cliente)
-                .operador(null) // reserva directa de cliente
+                .operador(operador)
                 .cantPersonas(request.getCantPersonas())
                 .estado("reservado")
                 .build();
@@ -88,7 +106,91 @@ public class ReservaService {
     @Transactional(readOnly = true)
     public List<ReservaResponse> listarMisReservas() {
         Usuario actual = usuarioAutenticado();
-        return reservaRepository.findByClienteIdOrderByIdDesc(actual.getId())
+        List<Reserva> reservas = esOperador(actual)
+                ? reservaRepository.findByOperadorIdOrderByIdDesc(actual.getId())
+                : reservaRepository.findByClienteIdOrderByIdDesc(actual.getId());
+        return reservas.stream().map(reservaMapper::toResponse).toList();
+    }
+
+    /**
+     * Actualiza ruta, fecha/hora y participantes de una reserva existente.
+     * Solo se puede actualizar si el estado es "reservado".
+     */
+    @Transactional
+    public ReservaResponse actualizarReserva(Long reservaId, UpdateReservaRequest request) {
+        if (request.getCantPersonas() != request.getParticipantes().size()) {
+            throw new BusinessRuleException("cantPersonas debe coincidir con el número de participantes");
+        }
+
+        Usuario actual = usuarioAutenticado();
+
+        Reserva reserva = reservaRepository.findDetailedById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva no encontrada: " + reservaId));
+
+        if (!puedeGestionarReserva(actual, reserva)) {
+            throw new AccessDeniedBusinessException("No tienes permisos para actualizar esta reserva");
+        }
+        if ("cancelado".equalsIgnoreCase(reserva.getEstado())) {
+            throw new BusinessRuleException("No puedes actualizar una reserva cancelada");
+        }
+        if ("completado".equalsIgnoreCase(reserva.getEstado())) {
+            throw new BusinessRuleException("No puedes actualizar una reserva completada");
+        }
+
+        Salida salidaActual = reserva.getSalida();
+        boolean salidaCambia = !salidaActual.getRuta().getId().equals(request.getRutaId())
+                || !salidaActual.getFechaProgramada().equals(request.getFecha())
+                || !salidaActual.getTiempoInicio().equals(request.getHoraInicio());
+
+        Salida nuevaSalida;
+        if (salidaCambia) {
+            nuevaSalida = salidaRepository
+                    .findProgramadaByRutaAndFechaAndHora(request.getRutaId(), request.getFecha(), request.getHoraInicio())
+                    .orElseGet(() -> crearNuevaSalida(
+                            request.getRutaId(), request.getFecha(), request.getHoraInicio(), request.getCantPersonas()));
+            validarCupoDisponible(nuevaSalida, request.getCantPersonas());
+            long total = reservaRepository.sumPersonasReservadasActivasBySalida(nuevaSalida.getId())
+                    + request.getCantPersonas();
+            asignarGuiasSalida(nuevaSalida, total);
+        } else {
+            nuevaSalida = salidaActual;
+            // Desconta la reserva actual para no doble-contarla en la validación de cupo
+            long ocupadosNetos = reservaRepository.sumPersonasReservadasActivasBySalida(nuevaSalida.getId())
+                    - reserva.getCantPersonas();
+            int maximo = nuevaSalida.getCaballos().size();
+            if (maximo == 0) {
+                throw new BusinessRuleException("La salida no tiene caballos asignados");
+            }
+            if (ocupadosNetos + request.getCantPersonas() > maximo) {
+                throw new BusinessRuleException(
+                        "Cupo insuficiente. Disponibles: " + (maximo - ocupadosNetos) + ", solicitados: " + request.getCantPersonas());
+            }
+            asignarGuiasSalida(nuevaSalida, ocupadosNetos + request.getCantPersonas());
+        }
+
+        reserva.getParticipantes().clear();
+        for (ParticipanteRequest pReq : request.getParticipantes()) {
+            Participante p = Participante.builder()
+                    .primerNombre(pReq.getPrimerNombre().trim())
+                    .primerApellido(pReq.getPrimerApellido().trim())
+                    .tipoDocumento(TipoDocumento.fromString(pReq.getTipoDocumento()))
+                    .documento(pReq.getDocumento().trim())
+                    .edad(pReq.getEdad())
+                    .cmAltura(pReq.getCmAltura())
+                    .kgPeso(pReq.getKgPeso())
+                    .build();
+            reserva.agregarParticipante(p);
+        }
+
+        reserva.setSalida(nuevaSalida);
+        reserva.setCantPersonas(request.getCantPersonas());
+
+        return reservaMapper.toResponse(reservaRepository.save(reserva));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReservaResponse> listarTodas() {
+        return reservaRepository.findAllOrderByIdDesc()
                 .stream()
                 .map(reservaMapper::toResponse)
                 .toList();
@@ -265,7 +367,7 @@ public class ReservaService {
      * @return
      */
     private boolean puedeGestionarReserva(Usuario actual, Reserva reserva) {
-        if (esAdmin(actual) || esOperador(actual)) return true;
+        if (esOperador(actual)) return true;
         return reserva.getCliente().getId().equals(actual.getId());
     }
 

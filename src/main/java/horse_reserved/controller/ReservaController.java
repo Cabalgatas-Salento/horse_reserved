@@ -1,11 +1,13 @@
 package horse_reserved.controller;
 
 import horse_reserved.dto.request.CreateReservaRequest;
+import horse_reserved.dto.request.UpdateReservaRequest;
 import horse_reserved.dto.response.ReservaResponse;
 import horse_reserved.service.ReservaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,29 +24,25 @@ public class ReservaController {
     private final ReservaService reservaService;
 
     /**
-     * Metodo que llama al servicio de reservaciones para crear una reserva
-     * @param request
-     * @return
+     * Solo ADMINISTRADOR puede listar todas las reservas del sistema
      */
-    @PostMapping
-    public ResponseEntity<ReservaResponse> crearReserva(@Valid @RequestBody CreateReservaRequest request) {
-        ReservaResponse response = reservaService.crearReserva(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    @GetMapping
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
+    public ResponseEntity<List<ReservaResponse>> listarTodas() {
+        return ResponseEntity.ok(reservaService.listarTodas());
     }
 
     /**
-     * Metodo que llama al servicio de reservaciones para obtener las reservaciones del usuario
-     * @return
+     * CLIENTE ve sus propias reservas; OPERADOR ve las reservas que gestionó
      */
     @GetMapping("/mias")
+    @PreAuthorize("hasAnyAuthority('CLIENTE', 'OPERADOR')")
     public ResponseEntity<List<ReservaResponse>> misReservas() {
         return ResponseEntity.ok(reservaService.listarMisReservas());
     }
 
     /**
-     * Metodo que llama al servicio de reservaciones para obtener una reserva por su id
-     * @param id
-     * @return
+     * Cualquier rol autenticado puede consultar una reserva por id (el servicio valida el acceso)
      */
     @GetMapping("/{id}")
     public ResponseEntity<ReservaResponse> obtenerPorId(@PathVariable Long id) {
@@ -52,11 +50,31 @@ public class ReservaController {
     }
 
     /**
-     * Metodo que llama al servicio de reservaciones para cancelar una reserva
-     * @param id
-     * @return
+     * CLIENTE crea su propia reserva; OPERADOR crea una reserva para un cliente especificado en clienteId
+     */
+    @PostMapping
+    @PreAuthorize("hasAnyAuthority('CLIENTE', 'OPERADOR')")
+    public ResponseEntity<ReservaResponse> crearReserva(@Valid @RequestBody CreateReservaRequest request) {
+        ReservaResponse response = reservaService.crearReserva(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * CLIENTE actualiza solo sus reservas; OPERADOR actualiza reservas de cualquier cliente.
+     * Permite cambiar ruta, fecha/hora y participantes. Solo reservas en estado "reservado".
+     */
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('CLIENTE', 'OPERADOR')")
+    public ResponseEntity<ReservaResponse> actualizar(@PathVariable Long id,
+                                                      @Valid @RequestBody UpdateReservaRequest request) {
+        return ResponseEntity.ok(reservaService.actualizarReserva(id, request));
+    }
+
+    /**
+     * CLIENTE cancela solo sus reservas; OPERADOR cancela reservas de cualquier cliente
      */
     @PatchMapping("/{id}/cancelar")
+    @PreAuthorize("hasAnyAuthority('CLIENTE', 'OPERADOR')")
     public ResponseEntity<ReservaResponse> cancelar(@PathVariable Long id) {
         return ResponseEntity.ok(reservaService.cancelarReserva(id));
     }

@@ -64,13 +64,9 @@ public class Reserva {
      * @param participante
      * @return
      */
-    public boolean agregarParticipante(Participante participante) {
-        if(!participantes.contains(participante)){
-            participantes.add(participante);
-            participante.setReserva(this);
-            return true;
-        }
-        return false;
+    public void agregarParticipante(Participante participante) {
+        participantes.add(participante);
+        participante.setReserva(this);
     }
 
     /**

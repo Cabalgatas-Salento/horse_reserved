@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Horse Reserved API",
-    "description": "## Horse Reserved — Colección de pruebas\n\n**Base URL**: `http://localhost:8080`\n\n### Flujo de prueba recomendado\n1. **Setup DB** → insertar datos mínimos en PostgreSQL (ver notas en carpeta Reservaciones)\n2. **Auth / Register** o **Auth / Login** → el token se guarda automáticamente\n3. **Reservaciones / Crear** → probar los distintos escenarios\n\n### Reglas de negocio clave\n- Cupo de una salida = número de caballos disponibles asignados\n- ≤ 8 personas en la salida → 1 guía asignado automáticamente\n- > 8 personas en la salida → 2 guías asignados automáticamente\n- Si no hay guía disponible y la salida es hoy o mañana → error 400\n- Varias reservas pueden compartir la misma salida (mismo ruta+fecha+hora)",
+    "description": "## Horse Reserved — Colección de pruebas\n\n**Base URL**: `http://localhost:8080`\n\n### Roles del sistema\n| Rol | Puede crear | Puede ver | Puede actualizar | Puede cancelar |\n|---|---|---|---|---|\n| CLIENTE | Sus propias reservas | Solo las suyas | Solo las suyas | Solo las suyas |\n| OPERADOR | Para cualquier cliente (requiere `clienteId`) | Cualquiera | Cualquiera | Cualquiera |\n| ADMINISTRADOR | ✗ | Todas | ✗ | ✗ |\n\n### Flujo de prueba recomendado\n1. **Setup DB** → insertar datos mínimos (ver notas en carpeta Reservaciones)\n2. **Auth / Login** con el rol que quieras probar → el token se guarda automáticamente\n3. Usar las subcarpetas **CLIENTE**, **OPERADOR** o **ADMINISTRADOR** según el rol\n\n### Reglas de negocio clave\n- Cupo de una salida = número de caballos disponibles asignados\n- ≤ 8 personas en la salida → 1 guía asignado automáticamente\n- > 8 personas en la salida → 2 guías asignados automáticamente\n- Si no hay guía disponible y la salida es hoy o mañana → error 400\n- Varias reservas pueden compartir la misma salida (mismo ruta+fecha+hora)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -27,6 +27,12 @@
       "value": "1",
       "type": "string",
       "description": "ID de reserva — se setea automáticamente al crear una reserva"
+    },
+    {
+      "key": "clienteId",
+      "value": "1",
+      "type": "string",
+      "description": "ID del usuario CLIENTE — lo necesita el OPERADOR al crear una reserva"
     }
   ],
   "item": [
@@ -186,234 +192,729 @@
     },
     {
       "name": "Reservaciones",
-      "description": "## Datos mínimos en la DB antes de probar\n\n```sql\n-- Ruta (sin max_caballos ni min_guias desde V6)\nINSERT INTO rutas (nombre, descripcion, dificultad, duracion_minutos, is_active)\nVALUES ('Ruta del Río', 'Paseo fluvial', 'FACIL', 90, true);\n\n-- Caballos (el cupo de la salida = cuántos estén disponibles)\nINSERT INTO caballos (nombre, raza, is_active) VALUES\n  ('Trueno', 'Criollo',  true),\n  ('Luna',   'Andaluz',  true),\n  ('Rocío',  'Criollo',  true),\n  ('Viento', 'Ibérico',  true),\n  ('Bruma',  'Criollo',  true);\n\n-- Guías (≤8 personas → 1 guía, >8 → 2 guías)\nINSERT INTO guias (nombre, telefono, email, is_active) VALUES\n  ('Pedro Guía',  '3001234567', 'pedro@hr.com', true),\n  ('Laura Guía',  '3009876543', 'laura@hr.com', true);\n```\n\n**Flujo de prueba sugerido:**\n1. Crear reserva A (2 personas) → crea la salida con 5 caballos + 1 guía\n2. Crear reserva B (5 personas, mismo ruta+fecha+hora) → reutiliza la salida (total 7, sigue 1 guía)\n3. Crear reserva C (2 personas, mismo ruta+fecha+hora) → total 9 > 8 → asigna 2do guía automáticamente\n4. Intentar reserva D → cupo lleno → 400\n5. Cancelar reserva A → 200\n6. Mis reservas → lista actualizada",
+      "description": "## Datos mínimos en la DB antes de probar\n\n```sql\n-- Ruta\nINSERT INTO rutas (nombre, descripcion, dificultad, duracion_minutos, is_active)\nVALUES ('Ruta del Río', 'Paseo fluvial', 'FACIL', 90, true);\n\n-- Caballos (el cupo de la salida = cuántos estén disponibles)\nINSERT INTO caballos (nombre, raza, is_active) VALUES\n  ('Trueno', 'Criollo',  true),\n  ('Luna',   'Andaluz',  true),\n  ('Rocío',  'Criollo',  true),\n  ('Viento', 'Ibérico',  true),\n  ('Bruma',  'Criollo',  true);\n\n-- Guías (≤8 personas → 1 guía, >8 → 2 guías)\nINSERT INTO guias (nombre, telefono, email, is_active) VALUES\n  ('Pedro Guía',  '3001234567', 'pedro@hr.com', true),\n  ('Laura Guía',  '3009876543', 'laura@hr.com', true);\n\n-- Usuario CLIENTE (para pruebas de OPERADOR)\n-- Registrar con POST /api/auth/register y anotar el ID generado en la variable clienteId\n```\n\n**Variables necesarias:**\n- `token` → se obtiene del Login\n- `reservaId` → se obtiene al crear una reserva (se guarda automáticamente)\n- `clienteId` → ID de un usuario con rol CLIENTE (requerido solo para OPERADOR)",
       "item": [
         {
-          "name": "Crear Reserva — caso base (2 personas)",
-          "event": [
+          "name": "CLIENTE",
+          "description": "Peticiones disponibles para un usuario con rol CLIENTE.\n\n**CLIENTE puede:** crear sus propias reservas, ver las suyas, actualizar las suyas y cancelar las suyas.\n**CLIENTE NO puede:** ver reservas de otros, crear reservas para otros.",
+          "item": [
             {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "  const body = pm.response.json();",
-                  "  pm.collectionVariables.set('reservaId', body.id);",
-                  "  console.log('Reserva creada, ID:', body.id);",
-                  "  console.log('Salida ID:', body.salidaId);",
-                  "}"
+              "name": "Crear Reserva — caso base (2 personas)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('reservaId', body.id);",
+                      "  console.log('Reserva creada, ID:', body.id, '| Salida ID:', body.salidaId);",
+                      "} else {",
+                      "  console.warn('Error:', pm.response.status, JSON.stringify(pm.response.json()));",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
                 ],
-                "type": "text/javascript"
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-04-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 2,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Ana\",\n      \"primerApellido\": \"García\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"987654321\",\n      \"edad\": 28,\n      \"cmAltura\": 165,\n      \"kgPeso\": 60.5\n    },\n    {\n      \"primerNombre\": \"Carlos\",\n      \"primerApellido\": \"López\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"112233445\",\n      \"edad\": 35,\n      \"cmAltura\": 178,\n      \"kgPeso\": 75.0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones"]
+                },
+                "description": "El CLIENTE crea una reserva para sí mismo (no incluye `clienteId`).\n\nComo no existe salida para esa ruta+fecha+hora, el sistema la crea automáticamente:\n- Asigna todos los caballos disponibles (cupo = 5)\n- Asigna 1 guía (2 personas ≤ 8)\n\n**Resultado esperado**: 201 con ReservaResponse. Guarda el `reservaId` automáticamente."
+              }
+            },
+            {
+              "name": "Crear Reserva — segunda (5 personas, misma salida)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  console.log('Reserva B creada, ID:', body.id, '| Salida ID:', body.salidaId);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-04-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 5,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Mónica\",\n      \"primerApellido\": \"Ruiz\",\n      \"tipoDocumento\": \"pasaporte\",\n      \"documento\": \"AB123456\",\n      \"edad\": 30,\n      \"cmAltura\": 160,\n      \"kgPeso\": 58.0\n    },\n    {\n      \"primerNombre\": \"Diego\",\n      \"primerApellido\": \"Mora\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"223344556\",\n      \"edad\": 25,\n      \"cmAltura\": 175,\n      \"kgPeso\": 70.0\n    },\n    {\n      \"primerNombre\": \"Sara\",\n      \"primerApellido\": \"Castro\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"334455667\",\n      \"edad\": 22,\n      \"cmAltura\": 162,\n      \"kgPeso\": 55.0\n    },\n    {\n      \"primerNombre\": \"Luis\",\n      \"primerApellido\": \"Pardo\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"445566778\",\n      \"edad\": 40,\n      \"cmAltura\": 180,\n      \"kgPeso\": 85.0\n    },\n    {\n      \"primerNombre\": \"Elena\",\n      \"primerApellido\": \"Vega\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"556677889\",\n      \"edad\": 33,\n      \"cmAltura\": 168,\n      \"kgPeso\": 63.5\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones"]
+                },
+                "description": "Segunda reserva para la misma salida (ruta 1, 2026-04-01 09:00).\n\nEl sistema reutiliza la salida existente. Total = 2 + 5 = 7 (≤ 8), el guía no cambia.\n\n**Resultado esperado**: 201. El `salidaId` debe ser el mismo que la reserva anterior."
+              }
+            },
+            {
+              "name": "Crear Reserva — cruza límite de 8 personas (asigna 2do guía)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  console.log('Reserva C creada, ID:', body.id, '— total > 8, se asignó 2do guía');",
+                      "} else {",
+                      "  console.log('Error:', pm.response.status, JSON.stringify(pm.response.json()));",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-04-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 2,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Pablo\",\n      \"primerApellido\": \"Gil\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"667788990\",\n      \"edad\": 45,\n      \"cmAltura\": 172,\n      \"kgPeso\": 80.0\n    },\n    {\n      \"primerNombre\": \"Valeria\",\n      \"primerApellido\": \"Soto\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"778899001\",\n      \"edad\": 27,\n      \"cmAltura\": 163,\n      \"kgPeso\": 57.0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones"]
+                },
+                "description": "Tercera reserva para la misma salida. Total = 7 + 2 = 9 > 8.\n\nEl sistema asigna automáticamente un 2do guía disponible.\n\n**Resultado esperado**: 201. Verificar en la DB que `salida_guias` tiene 2 filas para esta salida."
+              }
+            },
+            {
+              "name": "Crear Reserva — cupo lleno (debe fallar)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 400) {",
+                      "  console.log('OK — cupo lleno rechazado correctamente:', pm.response.json().message);",
+                      "} else {",
+                      "  console.warn('INESPERADO:', pm.response.status);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-04-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 1,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Intruso\",\n      \"primerApellido\": \"Test\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"999999999\",\n      \"edad\": 20,\n      \"cmAltura\": 170,\n      \"kgPeso\": 65.0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones"]
+                },
+                "description": "Intenta reservar cuando el cupo ya está lleno (9 personas en 5 caballos).\n\n**Resultado esperado**: 400 — 'Cupo insuficiente. Disponibles: 0, solicitados: 1'"
+              }
+            },
+            {
+              "name": "Mis Reservas (CLIENTE)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/mias",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "mias"]
+                },
+                "description": "Lista las reservas del CLIENTE autenticado (donde es el `cliente`), ordenadas por ID descendente.\n\n**Resultado esperado**: 200 con array de ReservaResponse"
+              }
+            },
+            {
+              "name": "Ver Reserva por ID (propia)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "{{reservaId}}"]
+                },
+                "description": "El CLIENTE puede ver el detalle de sus propias reservas.\n\n**Resultado esperado**: 200 con ReservaResponse\n**Error 403**: si intenta ver una reserva que no es suya"
+              }
+            },
+            {
+              "name": "Ver Reserva por ID — ajena (debe fallar)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 403) {",
+                      "  console.log('OK — acceso denegado correctamente');",
+                      "} else {",
+                      "  console.warn('INESPERADO:', pm.response.status);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/9999",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "9999"]
+                },
+                "description": "Intenta ver una reserva que no pertenece al CLIENTE.\n\nCambiar `9999` por el ID de una reserva de otro usuario.\n\n**Resultado esperado**: 403 — 'No tienes permisos para ver esta reserva'"
+              }
+            },
+            {
+              "name": "Actualizar Reserva — misma salida (cambia participantes)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const body = pm.response.json();",
+                      "  console.log('Reserva actualizada. Participantes:', body.participantes.length);",
+                      "} else {",
+                      "  console.warn('Error:', pm.response.status, JSON.stringify(pm.response.json()));",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-04-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 2,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Ana\",\n      \"primerApellido\": \"García Actualizada\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"987654321\",\n      \"edad\": 29,\n      \"cmAltura\": 165,\n      \"kgPeso\": 61.0\n    },\n    {\n      \"primerNombre\": \"Nuevo\",\n      \"primerApellido\": \"Participante\",\n      \"tipoDocumento\": \"pasaporte\",\n      \"documento\": \"XY9876543\",\n      \"edad\": 31,\n      \"cmAltura\": 170,\n      \"kgPeso\": 68.0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "{{reservaId}}"]
+                },
+                "description": "Actualiza la reserva **manteniendo la misma salida** (misma ruta, fecha y hora).\n\nEn este caso solo se actualizan los participantes. El cupo se recalcula descontando los cupos actuales de esta reserva para evitar doble-conteo.\n\n**Resultado esperado**: 200 con ReservaResponse. Los `participantes` deben reflejar los nuevos datos.\n**Error 400**: si no hay cupo suficiente para el nuevo `cantPersonas`"
+              }
+            },
+            {
+              "name": "Actualizar Reserva — cambio de fecha/hora (nueva salida)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const body = pm.response.json();",
+                      "  console.log('Reserva movida. Nueva salida ID:', body.salidaId, '| Fecha:', body.fechaProgramada);",
+                      "} else {",
+                      "  console.warn('Error:', pm.response.status, JSON.stringify(pm.response.json()));",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-04-15\",\n  \"horaInicio\": \"10:00:00\",\n  \"cantPersonas\": 2,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Ana\",\n      \"primerApellido\": \"García\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"987654321\",\n      \"edad\": 28,\n      \"cmAltura\": 165,\n      \"kgPeso\": 60.5\n    },\n    {\n      \"primerNombre\": \"Carlos\",\n      \"primerApellido\": \"López\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"112233445\",\n      \"edad\": 35,\n      \"cmAltura\": 178,\n      \"kgPeso\": 75.0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "{{reservaId}}"]
+                },
+                "description": "Actualiza la reserva **cambiando la fecha y hora** (nueva salida: 2026-04-15 10:00).\n\nEl sistema busca o crea una nueva salida para la nueva fecha/hora. Los cupos de la salida anterior quedan liberados.\n\n**Resultado esperado**: 200 con ReservaResponse. El `salidaId` y `fechaProgramada` deben ser diferentes.\n**Error 400**: si no hay caballos disponibles en la nueva fecha/hora"
+              }
+            },
+            {
+              "name": "Actualizar Reserva — ya cancelada (debe fallar)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 400) {",
+                      "  console.log('OK — no se puede actualizar reserva cancelada:', pm.response.json().message);",
+                      "} else {",
+                      "  console.warn('INESPERADO:', pm.response.status);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-04-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 1,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Test\",\n      \"primerApellido\": \"Actualizar\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"000000001\",\n      \"edad\": 25,\n      \"cmAltura\": 170,\n      \"kgPeso\": 65.0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "{{reservaId}}"]
+                },
+                "description": "Intenta actualizar una reserva que ya fue cancelada.\n\n**Pre-requisito**: primero cancelar la reserva con `PATCH /{id}/cancelar`.\n\n**Resultado esperado**: 400 — 'No puedes actualizar una reserva cancelada'"
+              }
+            },
+            {
+              "name": "Cancelar Reserva",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  console.log('Reserva cancelada. Estado:', pm.response.json().estado);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}/cancelar",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "{{reservaId}}", "cancelar"]
+                },
+                "description": "Cancela la reserva propia del CLIENTE.\n\n**Resultado esperado**: 200 con ReservaResponse (estado = 'cancelado')\n**Error 400**: si ya está cancelada o completada\n**Error 403**: si intenta cancelar una reserva ajena"
+              }
+            },
+            {
+              "name": "Cancelar Reserva — ya cancelada (debe fallar)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 400) {",
+                      "  console.log('OK — doble cancelación rechazada:', pm.response.json().message);",
+                      "} else {",
+                      "  console.warn('INESPERADO:', pm.response.status);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}/cancelar",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "{{reservaId}}", "cancelar"]
+                },
+                "description": "Intenta cancelar una reserva que ya está cancelada.\n\n**Pre-requisito**: ejecutar primero 'Cancelar Reserva'.\n\n**Resultado esperado**: 400 — 'La reserva ya está cancelada'"
               }
             }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-04-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 2,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Ana\",\n      \"primerApellido\": \"García\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"987654321\",\n      \"edad\": 28,\n      \"cmAltura\": 165,\n      \"kgPeso\": 60.5\n    },\n    {\n      \"primerNombre\": \"Carlos\",\n      \"primerApellido\": \"López\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"112233445\",\n      \"edad\": 35,\n      \"cmAltura\": 178,\n      \"kgPeso\": 75.0\n    }\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/reservaciones",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reservaciones"]
-            },
-            "description": "**Primera reserva** para la salida del 2026-04-01 09:00.\n\nComo no existe salida para ese ruta+fecha+hora, el sistema la crea automáticamente:\n- Asigna todos los caballos disponibles (cupo = 5 si insertaste los 5 del seed)\n- Asigna 1 guía (2 personas ≤ 8)\n\n**Resultado esperado**: 201 con ReservaResponse. Guarda el `reservaId` automáticamente."
-          }
+          ]
         },
         {
-          "name": "Crear Reserva — segunda (5 personas, misma salida)",
-          "event": [
+          "name": "OPERADOR",
+          "description": "Peticiones disponibles para un usuario con rol OPERADOR.\n\n**OPERADOR puede:** crear reservas para clientes (requiere `clienteId`), ver cualquier reserva, actualizar cualquier reserva y cancelar cualquier reserva.\n\n**Variable necesaria**: `clienteId` — ID de un usuario con rol CLIENTE existente en la DB.",
+          "item": [
             {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "  const body = pm.response.json();",
-                  "  console.log('Reserva B creada, ID:', body.id, '| Salida ID:', body.salidaId);",
-                  "}"
+              "name": "Crear Reserva para un Cliente",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('reservaId', body.id);",
+                      "  console.log('Reserva creada para cliente', body.clienteId, '| operadorId:', body.operadorId, '| Reserva ID:', body.id);",
+                      "} else {",
+                      "  console.warn('Error:', pm.response.status, JSON.stringify(pm.response.json()));",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
                 ],
-                "type": "text/javascript"
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clienteId\": {{clienteId}},\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-05-10\",\n  \"horaInicio\": \"08:00:00\",\n  \"cantPersonas\": 3,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Roberto\",\n      \"primerApellido\": \"Jiménez\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"321654987\",\n      \"edad\": 42,\n      \"cmAltura\": 175,\n      \"kgPeso\": 82.0\n    },\n    {\n      \"primerNombre\": \"Sofía\",\n      \"primerApellido\": \"Mendoza\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"654321987\",\n      \"edad\": 38,\n      \"cmAltura\": 162,\n      \"kgPeso\": 58.5\n    },\n    {\n      \"primerNombre\": \"Miguel\",\n      \"primerApellido\": \"Torres\",\n      \"tipoDocumento\": \"tarjeta_identidad\",\n      \"documento\": \"TI-2010-001\",\n      \"edad\": 14,\n      \"cmAltura\": 155,\n      \"kgPeso\": 45.0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones"]
+                },
+                "description": "El OPERADOR crea una reserva para el cliente con ID `{{clienteId}}`.\n\n**Campos clave**:\n- `clienteId`: ID del usuario CLIENTE que será el titular de la reserva (obligatorio para OPERADOR)\n- El operador queda registrado en el campo `operadorId` de la respuesta\n\n**Resultado esperado**: 201. En la respuesta, `clienteId` = el cliente especificado, `operadorId` = el operador autenticado.\n**Error 400**: si no se envía `clienteId` | si el usuario no existe | si el usuario no es CLIENTE"
+              }
+            },
+            {
+              "name": "Crear Reserva sin clienteId (debe fallar)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 400) {",
+                      "  console.log('OK — clienteId obligatorio para OPERADOR:', pm.response.json().message);",
+                      "} else {",
+                      "  console.warn('INESPERADO:', pm.response.status);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-05-10\",\n  \"horaInicio\": \"08:00:00\",\n  \"cantPersonas\": 1,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Test\",\n      \"primerApellido\": \"Sin Cliente\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"000111222\",\n      \"edad\": 25,\n      \"cmAltura\": 170,\n      \"kgPeso\": 65.0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones"]
+                },
+                "description": "El OPERADOR intenta crear una reserva sin especificar `clienteId`.\n\n**Resultado esperado**: 400 — 'El operador debe especificar el clienteId al crear una reserva'"
+              }
+            },
+            {
+              "name": "Crear Reserva con clienteId de un no-CLIENTE (debe fallar)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 400) {",
+                      "  console.log('OK — solo se puede crear reservas para CLIENTEs:', pm.response.json().message);",
+                      "} else {",
+                      "  console.warn('INESPERADO:', pm.response.status);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clienteId\": 999,\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-05-10\",\n  \"horaInicio\": \"08:00:00\",\n  \"cantPersonas\": 1,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Test\",\n      \"primerApellido\": \"No Cliente\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"000111222\",\n      \"edad\": 25,\n      \"cmAltura\": 170,\n      \"kgPeso\": 65.0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones"]
+                },
+                "description": "El OPERADOR intenta crear una reserva con un `clienteId` que apunta a un ADMINISTRADOR u OPERADOR.\n\nCambiar `999` por el ID de un usuario con rol OPERADOR o ADMINISTRADOR.\n\n**Resultado esperado**: 400 — 'El usuario especificado no es un cliente'"
+              }
+            },
+            {
+              "name": "Mis Reservas (OPERADOR — reservas gestionadas)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/mias",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "mias"]
+                },
+                "description": "Lista las reservas **gestionadas por el OPERADOR** (donde el operador autenticado figura como `operador`), ordenadas por ID descendente.\n\n**Resultado esperado**: 200 con array de ReservaResponse. Cada ítem tiene `operadorId` igual al ID del operador autenticado."
+              }
+            },
+            {
+              "name": "Ver Reserva por ID (cualquier reserva)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "{{reservaId}}"]
+                },
+                "description": "El OPERADOR puede ver el detalle de cualquier reserva, independientemente del cliente.\n\n**Resultado esperado**: 200 con ReservaResponse"
+              }
+            },
+            {
+              "name": "Actualizar Reserva de un Cliente",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const body = pm.response.json();",
+                      "  console.log('Reserva actualizada por operador. Nueva salida:', body.salidaId, '| Fecha:', body.fechaProgramada);",
+                      "} else {",
+                      "  console.warn('Error:', pm.response.status, JSON.stringify(pm.response.json()));",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-05-20\",\n  \"horaInicio\": \"11:00:00\",\n  \"cantPersonas\": 2,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Roberto\",\n      \"primerApellido\": \"Jiménez\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"321654987\",\n      \"edad\": 42,\n      \"cmAltura\": 175,\n      \"kgPeso\": 82.0\n    },\n    {\n      \"primerNombre\": \"Sofía\",\n      \"primerApellido\": \"Mendoza\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"654321987\",\n      \"edad\": 38,\n      \"cmAltura\": 162,\n      \"kgPeso\": 58.5\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "{{reservaId}}"]
+                },
+                "description": "El OPERADOR actualiza una reserva de cualquier cliente, cambiando fecha, hora y participantes.\n\n**Resultado esperado**: 200 con ReservaResponse con los nuevos datos."
+              }
+            },
+            {
+              "name": "Cancelar Reserva de un Cliente",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  console.log('Reserva cancelada por operador. Estado:', pm.response.json().estado);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}/cancelar",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "{{reservaId}}", "cancelar"]
+                },
+                "description": "El OPERADOR cancela una reserva de cualquier cliente.\n\n**Resultado esperado**: 200 con ReservaResponse (estado = 'cancelado')\n**Error 400**: si ya está cancelada o completada"
               }
             }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-04-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 5,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Mónica\",\n      \"primerApellido\": \"Ruiz\",\n      \"tipoDocumento\": \"pasaporte\",\n      \"documento\": \"AB123456\",\n      \"edad\": 30,\n      \"cmAltura\": 160,\n      \"kgPeso\": 58.0\n    },\n    {\n      \"primerNombre\": \"Diego\",\n      \"primerApellido\": \"Mora\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"223344556\",\n      \"edad\": 25,\n      \"cmAltura\": 175,\n      \"kgPeso\": 70.0\n    },\n    {\n      \"primerNombre\": \"Sara\",\n      \"primerApellido\": \"Castro\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"334455667\",\n      \"edad\": 22,\n      \"cmAltura\": 162,\n      \"kgPeso\": 55.0\n    },\n    {\n      \"primerNombre\": \"Luis\",\n      \"primerApellido\": \"Pardo\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"445566778\",\n      \"edad\": 40,\n      \"cmAltura\": 180,\n      \"kgPeso\": 85.0\n    },\n    {\n      \"primerNombre\": \"Elena\",\n      \"primerApellido\": \"Vega\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"556677889\",\n      \"edad\": 33,\n      \"cmAltura\": 168,\n      \"kgPeso\": 63.5\n    }\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/reservaciones",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reservaciones"]
-            },
-            "description": "**Segunda reserva** para la misma salida (ruta 1, 2026-04-01 09:00).\n\nEl sistema reutiliza la salida existente. Total personas = 2 + 5 = 7 (≤ 8), el guía no cambia.\n\n**Resultado esperado**: 201. El `salidaId` en la respuesta debe ser el mismo que la reserva anterior."
-          }
+          ]
         },
         {
-          "name": "Crear Reserva — cruza límite de 8 personas (asigna 2do guía)",
-          "event": [
+          "name": "ADMINISTRADOR",
+          "description": "Peticiones disponibles para un usuario con rol ADMINISTRADOR.\n\n**ADMINISTRADOR puede:** ver TODAS las reservas del sistema, ver el detalle de cualquier reserva.\n**ADMINISTRADOR NO puede:** crear, actualizar ni cancelar reservas.",
+          "item": [
             {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "  const body = pm.response.json();",
-                  "  console.log('Reserva C creada, ID:', body.id, '— total > 8, se asignó 2do guía');",
-                  "} else {",
-                  "  console.log('Error:', pm.response.status, pm.response.text());",
-                  "}"
+              "name": "Listar Todas las Reservas",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones"]
+                },
+                "description": "Lista **todas** las reservas del sistema, ordenadas por ID descendente. Solo accesible para ADMINISTRADOR.\n\n**Resultado esperado**: 200 con array completo de ReservaResponse\n**Error 403**: si el token corresponde a CLIENTE u OPERADOR"
+              }
+            },
+            {
+              "name": "Ver Reserva por ID (cualquier reserva)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "{{reservaId}}"]
+                },
+                "description": "El ADMINISTRADOR puede ver el detalle de cualquier reserva.\n\n**Resultado esperado**: 200 con ReservaResponse"
+              }
+            },
+            {
+              "name": "Intentar Crear Reserva (debe fallar con 403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 403) {",
+                      "  console.log('OK — ADMINISTRADOR no puede crear reservas');",
+                      "} else {",
+                      "  console.warn('INESPERADO:', pm.response.status);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
                 ],
-                "type": "text/javascript"
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-06-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 1,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Admin\",\n      \"primerApellido\": \"Test\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"000000000\",\n      \"edad\": 30,\n      \"cmAltura\": 170,\n      \"kgPeso\": 70.0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones"]
+                },
+                "description": "Verifica que el ADMINISTRADOR **no puede** crear reservas.\n\n**Resultado esperado**: 403 Forbidden"
+              }
+            },
+            {
+              "name": "Intentar Cancelar Reserva (debe fallar con 403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 403) {",
+                      "  console.log('OK — ADMINISTRADOR no puede cancelar reservas');",
+                      "} else {",
+                      "  console.warn('INESPERADO:', pm.response.status);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}/cancelar",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "{{reservaId}}", "cancelar"]
+                },
+                "description": "Verifica que el ADMINISTRADOR **no puede** cancelar reservas.\n\n**Resultado esperado**: 403 Forbidden"
+              }
+            },
+            {
+              "name": "Intentar Actualizar Reserva (debe fallar con 403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 403) {",
+                      "  console.log('OK — ADMINISTRADOR no puede actualizar reservas');",
+                      "} else {",
+                      "  console.warn('INESPERADO:', pm.response.status);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-06-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 1,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Admin\",\n      \"primerApellido\": \"Test\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"000000000\",\n      \"edad\": 30,\n      \"cmAltura\": 170,\n      \"kgPeso\": 70.0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "{{reservaId}}"]
+                },
+                "description": "Verifica que el ADMINISTRADOR **no puede** actualizar reservas.\n\n**Resultado esperado**: 403 Forbidden"
+              }
+            },
+            {
+              "name": "Intentar acceder a /mias (debe fallar con 403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 403) {",
+                      "  console.log('OK — ADMINISTRADOR no puede acceder a /mias');",
+                      "} else {",
+                      "  console.warn('INESPERADO:', pm.response.status);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservaciones/mias",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservaciones", "mias"]
+                },
+                "description": "Verifica que el ADMINISTRADOR **no puede** acceder a `/mias` (ese endpoint es solo para CLIENTE y OPERADOR).\n\n**Resultado esperado**: 403 Forbidden"
               }
             }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-04-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 2,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Pablo\",\n      \"primerApellido\": \"Gil\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"667788990\",\n      \"edad\": 45,\n      \"cmAltura\": 172,\n      \"kgPeso\": 80.0\n    },\n    {\n      \"primerNombre\": \"Valeria\",\n      \"primerApellido\": \"Soto\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"778899001\",\n      \"edad\": 27,\n      \"cmAltura\": 163,\n      \"kgPeso\": 57.0\n    }\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/reservaciones",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reservaciones"]
-            },
-            "description": "**Tercera reserva** para la misma salida. Total = 7 + 2 = 9 > 8.\n\nEl sistema asigna automáticamente un 2do guía disponible.\n\n**Resultado esperado**: 201. Verificar en la DB que `salida_guias` tiene 2 filas para esta salida."
-          }
-        },
-        {
-          "name": "Crear Reserva — cupo lleno (debe fallar)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 400) {",
-                  "  console.log('OK — cupo lleno rechazado correctamente:', pm.response.json().message);",
-                  "} else {",
-                  "  console.warn('INESPERADO:', pm.response.status);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"rutaId\": {{rutaId}},\n  \"fecha\": \"2026-04-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 1,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Intruso\",\n      \"primerApellido\": \"Test\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"999999999\",\n      \"edad\": 20,\n      \"cmAltura\": 170,\n      \"kgPeso\": 65.0\n    }\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/reservaciones",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reservaciones"]
-            },
-            "description": "Intenta reservar cuando el cupo ya está lleno (9 personas en 5 caballos → lleno desde la reserva C).\n\n**Resultado esperado**: 400 con mensaje 'Cupo insuficiente. Disponibles: 0, solicitados: 1'"
-          }
-        },
-        {
-          "name": "Crear Reserva — ruta distinta misma hora (salida independiente)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "  const body = pm.response.json();",
-                  "  console.log('Nueva salida creada para ruta 2, ID salida:', body.salidaId);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"rutaId\": 2,\n  \"fecha\": \"2026-04-01\",\n  \"horaInicio\": \"09:00:00\",\n  \"cantPersonas\": 1,\n  \"participantes\": [\n    {\n      \"primerNombre\": \"Test\",\n      \"primerApellido\": \"Ruta2\",\n      \"tipoDocumento\": \"cedula\",\n      \"documento\": \"111222333\",\n      \"edad\": 30,\n      \"cmAltura\": 170,\n      \"kgPeso\": 70.0\n    }\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/reservaciones",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reservaciones"]
-            },
-            "description": "Prueba que una ruta diferente (rutaId=2) crea su propia salida independiente, aunque sea el mismo horario.\n\n**Pre-requisito**: insertar una segunda ruta en la DB.\n**Resultado esperado**: 201 con un `salidaId` diferente al de las reservas anteriores."
-          }
-        },
-        {
-          "name": "Mis Reservas",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/reservaciones/mias",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reservaciones", "mias"]
-            },
-            "description": "Lista todas las reservas del usuario autenticado, ordenadas por ID descendente.\n\n**Respuesta**: 200 con array de ReservaResponse"
-          }
-        },
-        {
-          "name": "Ver Reserva por ID",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reservaciones", "{{reservaId}}"]
-            },
-            "description": "Detalle de una reserva. El cliente solo puede ver las suyas; admin/operador ven todas.\n\n**Respuesta**: 200 con ReservaResponse | 403 si no tiene permisos | 404 si no existe"
-          }
-        },
-        {
-          "name": "Cancelar Reserva",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "  console.log('Reserva cancelada. Estado:', pm.response.json().estado);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "PATCH",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/reservaciones/{{reservaId}}/cancelar",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reservaciones", "{{reservaId}}", "cancelar"]
-            },
-            "description": "Cancela una reserva. La persona cancelada libera su cupo en la salida.\n\n**Resultado esperado**: 200 con ReservaResponse (estado = 'cancelado')\n**Error 400**: si ya está cancelada o completada\n**Error 403**: si no es el propietario ni admin/operador"
-          }
+          ]
         }
       ]
     }

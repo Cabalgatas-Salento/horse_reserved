@@ -14,12 +14,10 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 /**
- * Clase para tranformar los objetos en informacion necesario para peticion de crear reserva
+ * Clase para transformar los objetos en información necesaria para actualizar una reserva.
+ * Permite cambiar ruta, fecha/hora y participantes.
  */
-public class CreateReservaRequest {
-
-    // Solo requerido cuando el que crea la reserva es un OPERADOR
-    private Long clienteId;
+public class UpdateReservaRequest {
 
     @NotNull
     private Long rutaId;

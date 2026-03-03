@@ -14,7 +14,14 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
     List<Reserva> findByClienteIdOrderByIdDesc(Long clienteId);
 
     @EntityGraph(attributePaths = {"salida", "salida.ruta", "cliente", "operador", "participantes"})
+    List<Reserva> findByOperadorIdOrderByIdDesc(Long operadorId);
+
+    @EntityGraph(attributePaths = {"salida", "salida.ruta", "cliente", "operador", "participantes"})
     List<Reserva> findBySalidaIdOrderByIdDesc(Long salidaId);
+
+    @EntityGraph(attributePaths = {"salida", "salida.ruta", "cliente", "operador", "participantes"})
+    @Query("select r from Reserva r order by r.id desc")
+    List<Reserva> findAllOrderByIdDesc();
 
     @EntityGraph(attributePaths = {"salida", "salida.ruta", "cliente", "operador", "participantes"})
     java.util.Optional<Reserva> findDetailedById(Long id);
