@@ -29,8 +29,9 @@ public class Ruta {
     @Column(name="descripcion", nullable=false)
     private String descripcion;
 
+    @Enumerated(EnumType.STRING)
     @Column(name="dificultad", nullable = false, length= 50)
-    private String dificultad;
+    private Dificultad dificultad;
 
     @Positive
     @Column(name="duracion_minutos", nullable = false)

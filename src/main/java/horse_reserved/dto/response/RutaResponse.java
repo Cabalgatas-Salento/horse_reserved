@@ -1,5 +1,6 @@
 package horse_reserved.dto.response;
 
+import horse_reserved.model.Dificultad;
 import lombok.*;
 
 @Getter
@@ -11,7 +12,7 @@ public class RutaResponse {
     private Long id;
     private String nombre;
     private String descripcion;
-    private String dificultad;
+    private Dificultad dificultad;
     private int duracionMinutos;
     private String urlImagen;
 }
