@@ -48,13 +48,14 @@ public class ReservaService {
         Usuario cliente;
         Usuario operador;
         if (esOperador(autenticado)) {
-            if (request.getClienteId() == null) {
-                throw new BusinessRuleException("El operador debe especificar el clienteId al crear una reserva");
-            }
-            cliente = usuarioRepository.findById(request.getClienteId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado: " + request.getClienteId()));
-            if (cliente.getRole() != Rol.CLIENTE) {
-                throw new BusinessRuleException("El usuario especificado no es un cliente");
+            if (request.getClienteId() != null) {
+                cliente = usuarioRepository.findById(request.getClienteId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado: " + request.getClienteId()));
+                if (cliente.getRole() != Rol.CLIENTE) {
+                    throw new BusinessRuleException("El usuario especificado no es un cliente");
+                }
+            } else {
+                cliente = null; // reserva de invitado
             }
             operador = autenticado;
         } else {
@@ -357,6 +358,7 @@ public class ReservaService {
      */
     private boolean puedeVerReserva(Usuario actual, Reserva reserva) {
         if (esAdmin(actual) || esOperador(actual)) return true;
+        if (reserva.getCliente() == null) return false;
         return reserva.getCliente().getId().equals(actual.getId());
     }
 
@@ -368,6 +370,7 @@ public class ReservaService {
      */
     private boolean puedeGestionarReserva(Usuario actual, Reserva reserva) {
         if (esOperador(actual)) return true;
+        if (reserva.getCliente() == null) return false;
         return reserva.getCliente().getId().equals(actual.getId());
     }
 

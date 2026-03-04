@@ -21,6 +21,7 @@ public class ReservaResponse {
     private int cantPersonas;
 
     private Long salidaId;
+    private Long rutaId;
     private LocalDate fechaProgramada;
     private LocalTime tiempoInicio;
     private LocalTime tiempoFin;

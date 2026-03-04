@@ -34,7 +34,7 @@ public class Reserva {
      * Define la relacion de muchos a 1 entre Cliente y reservas
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name="client_id", nullable=false)
+    @JoinColumn(name="client_id", nullable=true)
     private Usuario cliente;
 
     /**
