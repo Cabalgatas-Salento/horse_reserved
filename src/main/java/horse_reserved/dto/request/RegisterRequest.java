@@ -41,4 +41,7 @@ public class RegisterRequest {
 
     @Size(max = 20, message = "El teléfono no puede exceder 20 caracteres")
     private String telefono;
+
+    @NotBlank(message = "El token de reCAPTCHA es obligatorio")
+    private String recaptchaToken;
 }
