@@ -11,6 +11,7 @@ import horse_reserved.dto.response.UserProfileResponse;
 import horse_reserved.security.OAuth2TokenStore;
 import horse_reserved.service.AuthService;
 import horse_reserved.service.PasswordResetService;
+import horse_reserved.service.RecaptchaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,7 @@ public class AuthController {
     private final AuthService authService;
     private final PasswordResetService passwordResetService;
     private final OAuth2TokenStore oauth2TokenStore;
+    private final RecaptchaService recaptchaService;
 
     /**
      * Endpoint para registrar un nuevo cliente
@@ -33,6 +35,7 @@ public class AuthController {
      */
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+        recaptchaService.verify(request.getRecaptchaToken());
         AuthResponse response = authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -43,6 +46,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        recaptchaService.verify(request.getRecaptchaToken());
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
     }
@@ -76,6 +80,7 @@ public class AuthController {
      */
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        recaptchaService.verify(request.getRecaptchaToken());
         passwordResetService.processForgotPassword(request.getEmail());
         return ResponseEntity.ok("Si el correo está registrado, recibirás un enlace para restablecer tu contraseña");
     }

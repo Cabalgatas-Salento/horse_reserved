@@ -19,4 +19,7 @@ public class LoginRequest {
 
     @NotBlank(message = "La contraseña es obligatoria")
     private String password;
+
+    @NotBlank(message = "El token de reCAPTCHA es obligatorio")
+    private String recaptchaToken;
 }

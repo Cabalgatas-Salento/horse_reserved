@@ -161,6 +161,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
+    @ExceptionHandler(RecaptchaVerificationException.class)
+    public ResponseEntity<ErrorResponse> handleRecaptcha(
+            RecaptchaVerificationException ex,
+            WebRequest request) {
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message(ex.getMessage())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(
             BusinessRuleException ex,
