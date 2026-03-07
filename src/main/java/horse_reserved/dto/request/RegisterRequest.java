@@ -1,5 +1,6 @@
 package horse_reserved.dto.request;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -44,4 +45,8 @@ public class RegisterRequest {
 
     @NotBlank(message = "El token de reCAPTCHA es obligatorio")
     private String recaptchaToken;
+
+    @NotNull(message = "Debe aceptar la política de tratamiento de datos")
+    @AssertTrue(message = "Debe aceptar la política de tratamiento de datos")
+    private Boolean habeasDataConsent;
 }

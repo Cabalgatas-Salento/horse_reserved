@@ -71,6 +71,13 @@ public class Usuario implements UserDetails {
     @Column(name = "password_changed_at", nullable = false)
     private Instant passwordChangedAt = Instant.EPOCH;
 
+    @Builder.Default
+    @Column(name = "habeas_data_consented", nullable = false)
+    private Boolean habeasDataConsented = false;
+
+    @Column(name = "habeas_data_consented_at")
+    private Instant habeasDataConsentedAt;
+
     /**
      * Define una relacion de uno a muchos entre Cliente y reservas
      */

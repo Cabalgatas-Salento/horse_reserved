@@ -55,6 +55,8 @@ public class AuthService {
                 .telefono(request.getTelefono())
                 .role(Rol.CLIENTE) // Por defecto todos los registros son clientes
                 .isActive(true)
+                .habeasDataConsented(request.getHabeasDataConsent())
+                .habeasDataConsentedAt(Instant.now())
                 .build();
 
         // Guardar usuario
@@ -148,6 +150,7 @@ public class AuthService {
                 .telefono(usuario.getTelefono())
                 .role(usuario.getRole().name())
                 .isActive(usuario.getIsActive())
+                .habeasDataConsented(usuario.getHabeasDataConsented())
                 .build();
     }
 
