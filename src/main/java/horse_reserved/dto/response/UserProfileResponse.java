@@ -20,4 +20,5 @@ public class UserProfileResponse {
     private String telefono;
     private String role;
     private Boolean isActive;
+    private Boolean habeasDataConsented;
 }
