@@ -1,9 +1,11 @@
 package horse_reserved.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Positive;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +30,10 @@ public class Ruta {
 
     @Column(name="descripcion", nullable=false)
     private String descripcion;
+
+    @Positive
+    @Column(name = "precio", nullable = false, precision = 10, scale = 2)
+    private BigDecimal precio;
 
     @Enumerated(EnumType.STRING)
     @Column(name="dificultad", nullable = false, length= 50)

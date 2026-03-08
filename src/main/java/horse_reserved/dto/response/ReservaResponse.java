@@ -2,6 +2,7 @@ package horse_reserved.dto.response;
 
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -27,6 +28,9 @@ public class ReservaResponse {
     private LocalTime tiempoFin;
     private String salidaEstado;
     private String rutaNombre;
+    private BigDecimal rutaPrecio;
+    private BigDecimal precioUnitario;
+    private BigDecimal precioTotal;
 
     private Long clienteId;
     private String clienteEmail;

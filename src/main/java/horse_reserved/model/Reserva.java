@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Positive;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,6 +48,14 @@ public class Reserva {
     @Positive
     @Column(name="num_people", nullable = false)
     private int cantPersonas; //cantidad de personas que participan en una reserva
+
+    @Positive
+    @Column(name = "precio_unitario", nullable = false, precision = 10, scale = 2)
+    private BigDecimal precioUnitario;
+
+    @Positive
+    @Column(name = "total", nullable = false, precision = 20, scale = 2)
+    private BigDecimal precioTotal;
 
     @Column(name="estado", nullable = false, length = 50)
     private String estado;

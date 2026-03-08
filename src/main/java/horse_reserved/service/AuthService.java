@@ -73,7 +73,7 @@ public class AuthService {
         return AuthResponse.builder()
                 .token(jwtToken)
                 .type("Bearer")
-                .expiresIn(86400L) // 24 horas
+                .expiresIn(1800L) // 30 minutos
                 .userId(usuario.getId())
                 .email(usuario.getEmail())
                 .primerNombre(usuario.getPrimerNombre())
@@ -119,7 +119,7 @@ public class AuthService {
         return AuthResponse.builder()
                 .token(jwtToken)
                 .type("Bearer")
-                .expiresIn(86400L)
+                .expiresIn(1800L)
                 .userId(usuario.getId())
                 .email(usuario.getEmail())
                 .primerNombre(usuario.getPrimerNombre())
