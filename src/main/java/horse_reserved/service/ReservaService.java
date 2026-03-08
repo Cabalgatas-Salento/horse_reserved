@@ -291,7 +291,7 @@ public class ReservaService {
                 .estado("programado")
                 .build();
 
-        caballos.forEach(nueva::agregarCaballo);
+        caballos.stream().limit(cantPersonas).forEach(nueva::agregarCaballo);
         asignarGuiasSalida(nueva, (long) cantPersonas);
 
         return salidaRepository.save(nueva);
