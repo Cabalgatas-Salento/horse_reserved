@@ -76,7 +76,7 @@ public class ReservaService {
         asignarGuiasSalida(salida, totalPersonas);
 
         BigDecimal precioUnitario = salida.getRuta().getPrecio();
-        BigDecimal precioTotal = salida.getRuta().getPrecio().multiply(BigDecimal.valueOf(totalPersonas));
+        BigDecimal precioTotal = precioUnitario.multiply(BigDecimal.valueOf(request.getCantPersonas()));
 
         Reserva reserva = Reserva.builder()
                 .salida(salida)
@@ -191,6 +191,9 @@ public class ReservaService {
 
         reserva.setSalida(nuevaSalida);
         reserva.setCantPersonas(request.getCantPersonas());
+        BigDecimal precioUnitario = nuevaSalida.getRuta().getPrecio();
+        reserva.setPrecioUnitario(precioUnitario);
+        reserva.setPrecioTotal(precioUnitario.multiply(BigDecimal.valueOf(request.getCantPersonas())));
 
         return reservaMapper.toResponse(reservaRepository.save(reserva));
     }

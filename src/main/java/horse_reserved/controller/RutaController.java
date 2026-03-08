@@ -40,6 +40,7 @@ public class RutaController {
         return RutaResponse.builder()
                 .id(ruta.getId())
                 .nombre(ruta.getNombre())
+                .precio(ruta.getPrecio())
                 .descripcion(ruta.getDescripcion())
                 .dificultad(ruta.getDificultad())
                 .duracionMinutos(ruta.getDuracionMinutos())
