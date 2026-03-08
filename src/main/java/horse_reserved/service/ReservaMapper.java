@@ -31,6 +31,7 @@ public class ReservaMapper {
                 .salidaEstado(reserva.getSalida().getEstado())
                 .rutaNombre(reserva.getSalida().getRuta().getNombre())
                 .rutaPrecio(reserva.getSalida().getRuta().getPrecio())
+                .precioUnitario(reserva.getPrecioUnitario())
                 .precioTotal(reserva.getPrecioTotal())
                 .clienteId(reserva.getCliente() != null ? reserva.getCliente().getId() : null)
                 .clienteEmail(reserva.getCliente() != null ? reserva.getCliente().getEmail() : null)

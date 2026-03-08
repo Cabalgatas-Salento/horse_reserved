@@ -77,7 +77,7 @@ public class EmailService {
                         </p>
                         <p style="color: #555; font-size: 16px;">
                             Haz clic en el siguiente botón para crear una nueva contraseña.
-                            Este enlace es válido por <strong>30 minutos</strong>.
+                            Este enlace es válido por <strong>5 minutos</strong>.
                         </p>
                         <div style="text-align: center; margin: 32px 0;">
                             <a href="%s"

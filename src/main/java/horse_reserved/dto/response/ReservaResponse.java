@@ -29,6 +29,7 @@ public class ReservaResponse {
     private String salidaEstado;
     private String rutaNombre;
     private BigDecimal rutaPrecio;
+    private BigDecimal precioUnitario;
     private BigDecimal precioTotal;
 
     private Long clienteId;

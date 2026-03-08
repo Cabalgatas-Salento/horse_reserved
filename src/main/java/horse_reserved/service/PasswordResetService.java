@@ -25,7 +25,7 @@ import java.util.UUID;
 @Slf4j
 public class PasswordResetService {
 
-    private static final int TOKEN_EXPIRY_MINUTES = 30;
+    private static final int TOKEN_EXPIRY_MINUTES = 5;
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordResetTokenRepository tokenRepository;
