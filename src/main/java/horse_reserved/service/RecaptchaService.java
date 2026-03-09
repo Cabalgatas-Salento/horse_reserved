@@ -3,7 +3,10 @@ package horse_reserved.service;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import horse_reserved.exception.RecaptchaVerificationException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
 @Service
@@ -16,25 +19,26 @@ public class RecaptchaService {
 
     private final RestClient restClient = RestClient.create();
 
-    /**
-     * Verifica el token reCAPTCHA v2 con la API de Google.
-     * Lanza RecaptchaVerificationException si la verificación falla.
-     */
     public void verify(String token) {
         if (token == null || token.isBlank()) {
             throw new RecaptchaVerificationException("El token de reCAPTCHA es obligatorio");
         }
 
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("secret", secretKey);
+        form.add("response", token);
+
         RecaptchaResponse response = restClient.post()
                 .uri(VERIFY_URL)
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .body("secret=" + secretKey + "&response=" + token)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(form)
                 .retrieve()
                 .body(RecaptchaResponse.class);
 
         if (response == null || !response.success()) {
             throw new RecaptchaVerificationException("Verificación reCAPTCHA fallida. Por favor, inténtalo de nuevo.");
         }
+
     }
 
     private record RecaptchaResponse(
