@@ -2,6 +2,8 @@ package horse_reserved.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import horse_reserved.exception.RecaptchaVerificationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -9,9 +11,12 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
+import java.util.Arrays;
+
 @Service
 public class RecaptchaService {
 
+    private static final Logger log = LoggerFactory.getLogger(RecaptchaService.class);
     private static final String VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify";
 
     @Value("${recaptcha.secret-key}")
@@ -36,6 +41,10 @@ public class RecaptchaService {
                 .body(RecaptchaResponse.class);
 
         if (response == null || !response.success()) {
+            String errorCodes = (response != null && response.errorCodes() != null)
+                    ? Arrays.toString(response.errorCodes()) : "none";
+            String hostname = (response != null) ? response.hostname() : "null";
+            log.warn("reCAPTCHA verification failed — errorCodes: {}, hostname: {}", errorCodes, hostname);
             throw new RecaptchaVerificationException("Verificación reCAPTCHA fallida. Por favor, inténtalo de nuevo.");
         }
 
