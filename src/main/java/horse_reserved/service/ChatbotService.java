@@ -5,10 +5,12 @@ import horse_reserved.model.chatbot.FaqIntent;
 import horse_reserved.model.chatbot.FaqKnowledgeBase;
 import horse_reserved.service.chatbot.FaqKnowledgeBaseProvider;
 import horse_reserved.service.chatbot.IntentMatcher;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @Service
 /**
  * Orquesta la lógica principal del chatbot.
@@ -30,20 +32,28 @@ public class ChatbotService {
      * Aplica validación de threshold y fallback si es necesario.
      */
     public ChatbotAnswerResponse answer(String question) {
+        log.debug("Consulta chatbot recibida — longitud={} chars", question != null ? question.length() : 0);
+
         FaqKnowledgeBase kb = kbProvider.getKnowledgeBase();
 
         IntentMatcher.MatchResult result = intentMatcher.findBestMatch(question, kb.getIntents());
         FaqIntent intent = result.intent();
 
         if (intent == null) {
+            log.info("Chatbot fallback — sin intent detectado, score={}", String.format("%.2f", 0.0));
             return fallback(kb, 0.0);
         }
 
         double threshold = intent.getThreshold() == null ? 0.70 : intent.getThreshold();
         if (result.score() < threshold) {
+            log.info("Chatbot fallback — score={} por debajo del umbral={} para intentId={}",
+                    String.format("%.2f", result.score()),
+                    String.format("%.2f", threshold),
+                    intent.getId());
             return fallback(kb, result.score());
         }
 
+        log.info("Chatbot respuesta — intentId={}, score={}", intent.getId(), String.format("%.2f", result.score()));
         return ChatbotAnswerResponse.builder()
                 .intentId(intent.getId())
                 .confidence(round(result.score()))

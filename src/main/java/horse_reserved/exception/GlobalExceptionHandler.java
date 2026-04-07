@@ -1,6 +1,7 @@
 package horse_reserved.exception;
 
 import horse_reserved.dto.response.ErrorResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -18,6 +19,7 @@ import java.util.Map;
  * Manejador global de excepciones para la aplicación
  * Intercepta todas las excepciones y retorna respuestas HTTP apropiadas
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

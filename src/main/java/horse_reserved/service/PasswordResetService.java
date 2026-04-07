@@ -5,6 +5,7 @@ import horse_reserved.model.PasswordResetToken;
 import horse_reserved.model.Usuario;
 import horse_reserved.repository.PasswordResetTokenRepository;
 import horse_reserved.repository.UsuarioRepository;
+import horse_reserved.util.LogMaskUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -40,6 +41,7 @@ public class PasswordResetService {
      */
     @Transactional
     public void processForgotPassword(String email) {
+        log.info("Solicitud de reset de contraseña para: {}", LogMaskUtil.maskEmail(email));
         Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(email);
 
         // Salida silenciosa si el email no existe
@@ -89,10 +91,14 @@ public class PasswordResetService {
     @Transactional
     public void resetPassword(String token, String nuevaPassword) {
         PasswordResetToken resetToken = tokenRepository.findByToken(token)
-                .orElseThrow(() -> new InvalidTokenException(
-                        "El enlace de restablecimiento no es válido o ha expirado"));
+                .orElseThrow(() -> {
+                    log.warn("Token de reset inválido o no encontrado — ref={}", LogMaskUtil.maskToken(token));
+                    return new InvalidTokenException(
+                            "El enlace de restablecimiento no es válido o ha expirado");
+                });
 
         if (!resetToken.isValid()) {
+            log.warn("Token de reset inválido o expirado — ref={}", LogMaskUtil.maskToken(token));
             throw new InvalidTokenException(
                     "El enlace de restablecimiento no es válido o ha expirado");
         }
@@ -105,6 +111,6 @@ public class PasswordResetService {
         resetToken.setUsed(true);
         tokenRepository.save(resetToken);
 
-        log.info("Contraseña restablecida exitosamente para usuario id={}", usuario.getId());
+        log.info("Contraseña restablecida exitosamente para: {}", LogMaskUtil.maskEmail(usuario.getEmail()));
     }
 }

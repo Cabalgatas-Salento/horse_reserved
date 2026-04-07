@@ -3,6 +3,8 @@ plugins {
 	id 'org.springframework.boot' version '4.0.0'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'org.flywaydb.flyway' version '11.14.1'
+	id 'org.sonarqube' version '5.1.0.4882'
+	id 'jacoco'
 }
 
 group = 'com.cabalgatas_salento'
@@ -61,6 +63,64 @@ dependencies {
 
 }
 
+jacoco {
+	toolVersion = '0.8.12'
+}
+
+jacocoTestReport {
+	dependsOn test  // test debe correr antes de generar reporte
+	reports {
+		xml.required = true   // requerido por SonarCloud
+		html.required = true  // útil para revisión local
+		csv.required = false
+	}
+	//exclusiones sin logica implementada
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: [
+					'**/dto/**',
+					'**/model/**',
+					'**/config/**',
+					'**/ReservaDeCabalgatasApplication.class',
+			])
+		}))
+	}
+}
+
+sonar {
+	properties {
+		property 'sonar.projectKey',    'REEMPLAZAR_SONAR_PROJECT_KEY'
+		property 'sonar.organization',  'REEMPLAZAR_SONAR_ORGANIZATION'
+		property 'sonar.host.url',      'https://sonarcloud.io'
+		property 'sonar.projectName',   'Horse Reserved'
+
+		// Ruta al XML de JaCoCo
+		property 'sonar.coverage.jacoco.xmlReportPaths',
+				'build/reports/jacoco/test/jacocoTestReport.xml'
+
+		// Excluir los mismos archivos que JaCoCo
+		property 'sonar.exclusions', [
+				'**/dto/**',
+				'**/model/**',
+				'**/config/**',
+				'**/ReservaDeCabalgatasApplication.java',
+		].join(',')
+
+		property 'sonar.coverage.exclusions', [
+				'**/dto/**',
+				'**/model/**',
+				'**/config/**',
+				'**/ReservaDeCabalgatasApplication.java',
+		].join(',')
+
+		// Fuentes y tests
+		property 'sonar.sources',     'src/main/java'
+		property 'sonar.tests',       'src/test/java'
+		property 'sonar.java.binaries', 'build/classes'
+	}
+}
+
 tasks.named('test') {
+	finalizedBy jacocoTestReport
 	useJUnitPlatform()
 }

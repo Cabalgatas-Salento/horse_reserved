@@ -346,3 +346,29 @@ java -jar build/libs/horse_reserved-0.0.1-SNAPSHOT.jar
 - **CORS:** restringido a `http://localhost:4200`
 - **Enumeración de emails:** el endpoint `/forgot-password` siempre responde `200`
 - **Tokens de recuperación:** UUID de un solo uso, expiran en 30 minutos
+
+## SonarCloud & Cobertura
+
+### Secrets requeridos en GitHub
+| Secret | Descripción |
+|---|---|
+| `SONAR_TOKEN` | Token de autenticación generado en sonarcloud.io |
+
+### Configurar SonarCloud
+1. Ir a [sonarcloud.io](https://sonarcloud.io) → importar repositorio de GitHub
+2. Anotar `Project Key` y `Organization Key`
+3. Reemplazar en `build.gradle`:
+    - `REEMPLAZAR_SONAR_PROJECT_KEY`
+    - `REEMPLAZAR_SONAR_ORGANIZATION`
+4. En GitHub → Settings → Secrets → Actions → New secret → `SONAR_TOKEN`
+
+### Ejecutar análisis local
+```bash
+./gradlew clean test jacocoTestReport
+./gradlew sonar -Dsonar.token=TU_TOKEN_AQUI
+```
+
+### Ver reporte de cobertura local
+```
+build/reports/jacoco/test/html/index.html
+```

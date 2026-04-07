@@ -7,9 +7,11 @@ import horse_reserved.dto.response.ReservaResponse;
 import horse_reserved.exception.*;
 import horse_reserved.model.*;
 import horse_reserved.repository.*;
+import horse_reserved.util.LogMaskUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 /**
@@ -47,9 +50,14 @@ public class ReservaService {
      */
     @Transactional
     public ReservaResponse crearReserva(CreateReservaRequest request) {
+        log.info("Creando reserva — rutaId={}, fecha={}, hora={}, cantPersonas={}",
+                request.getRutaId(), request.getFecha(), request.getHoraInicio(), request.getCantPersonas());
+
         validarRequestCrear(request);
 
         Usuario autenticado = usuarioAutenticado();
+
+        log.debug("Usuario autenticado: {}", LogMaskUtil.maskEmail(autenticado.getEmail()));
 
         Usuario cliente;
         Usuario operador;
@@ -71,8 +79,11 @@ public class ReservaService {
 
         Salida salida = salidaRepository
                 .findProgramadaByRutaAndFechaAndHora(request.getRutaId(), request.getFecha(), request.getHoraInicio())
-                .orElseGet(() -> crearNuevaSalida(
-                        request.getRutaId(), request.getFecha(), request.getHoraInicio(), request.getCantPersonas()));
+                .orElseGet(() -> {
+                    log.info("No existe salida programada — creando nueva salida para rutaId={}", request.getRutaId());
+                    return crearNuevaSalida(request.getRutaId(), request.getFecha(),
+                            request.getHoraInicio(), request.getCantPersonas());
+                });
 
         validarCupoDisponible(salida, request.getCantPersonas());
 
@@ -108,6 +119,7 @@ public class ReservaService {
         }
 
         Reserva saved = reservaRepository.save(reserva);
+        log.info("Reserva creada exitosamente — reservaId={}, salidaId={}", saved.getId(), salida.getId());
         return reservaMapper.toResponse(saved);
     }
 
@@ -130,6 +142,7 @@ public class ReservaService {
      */
     @Transactional
     public ReservaResponse actualizarReserva(Long reservaId, UpdateReservaRequest request) {
+        log.info("Actualizando reserva — reservaId={}, cantPersonas={}", reservaId, request.getCantPersonas());
         if (request.getCantPersonas() != request.getParticipantes().size()) {
             throw new BusinessRuleException("cantPersonas debe coincidir con el número de participantes");
         }
@@ -200,6 +213,7 @@ public class ReservaService {
         BigDecimal precioUnitario = nuevaSalida.getRuta().getPrecio();
         reserva.setPrecioUnitario(precioUnitario);
         reserva.setPrecioTotal(precioUnitario.multiply(BigDecimal.valueOf(request.getCantPersonas())));
+        log.info("Reserva actualizada — reservaId={}", reservaId);
 
         return reservaMapper.toResponse(reservaRepository.save(reserva));
     }
@@ -238,6 +252,7 @@ public class ReservaService {
      */
     @Transactional
     public ReservaResponse cancelarReserva(Long reservaId) {
+        log.info("Solicitud de cancelación — reservaId={}", reservaId);
         Usuario actual = usuarioAutenticado();
 
         Reserva reserva = reservaRepository.findDetailedById(reservaId)
@@ -256,6 +271,7 @@ public class ReservaService {
         }
 
         reserva.setEstado("cancelado");
+        log.info("Reserva cancelada — reservaId={}", reservaId);
         return reservaMapper.toResponse(reservaRepository.save(reserva));
     }
 
