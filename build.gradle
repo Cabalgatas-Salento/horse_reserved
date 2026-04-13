@@ -37,10 +37,9 @@ dependencies {
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'org.postgresql:postgresql'
 	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'org.springframework.boot:spring-boot-test-autoconfigure'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     // Rate Limiting
@@ -90,7 +89,7 @@ jacocoTestReport {
 sonar {
 	properties {
 		property 'sonar.projectKey',    'REEMPLAZAR_SONAR_PROJECT_KEY'
-		property 'sonar.organization',  'REEMPLAZAR_SONAR_ORGANIZATION'
+		property 'sonar.organization',  'cabalgatas-salento'
 		property 'sonar.host.url',      'https://sonarcloud.io'
 		property 'sonar.projectName',   'Horse Reserved'
 

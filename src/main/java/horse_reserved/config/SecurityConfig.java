@@ -56,12 +56,16 @@ public class SecurityConfig {
 
                         // Endpoints que requieren autenticación
                         .requestMatchers("/api/reservaciones/**").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
+                        .requestMatchers("/api/pagos/intentos").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
+                        .requestMatchers("/api/pagos/intentos/**","api/pagos/transacciones/**").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
+                        .requestMatchers("/api/pagos/reembolsos").hasAnyAuthority("OPERADOR", "ADMINISTRADOR")
                         .requestMatchers("/api/salidas/**").hasAnyAuthority("OPERADOR", "ADMINISTRADOR")
 
                         // Endpoints solo para administradores
                         .requestMatchers("/api/admin/**").hasAuthority("ADMINISTRADOR")
                         .requestMatchers("/api/rutas/**").hasAuthority("ADMINISTRADOR")
                         .requestMatchers("/api/recursos/**").hasAuthority("ADMINISTRADOR")
+                        .requestMatchers("/api/pagos/metricas").hasAuthority("ADMINISTRADOR")
 
                         // Cualquier otra petición requiere autenticación
                         .anyRequest().authenticated()
