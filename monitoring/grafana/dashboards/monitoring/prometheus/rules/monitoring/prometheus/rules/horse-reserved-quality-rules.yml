@@ -1,0 +1,80 @@
+groups:
+  - name: horse_reserved_quality_monthly
+    interval: 1m
+    rules:
+      # 3.3.1 Gestión de reservas
+      - record: hr:reservas_confirmadas_ratio:monthly
+        expr: 100 * horse_reserved_reservas_confirmadas_total / clamp_min(horse_reserved_reservas_solicitadas_total, 1)
+
+      - record: hr:reservas_canceladas_ratio:monthly
+        expr: 100 * horse_reserved_reservas_canceladas_total / clamp_min(horse_reserved_reservas_totales_total, 1)
+
+      - record: hr:conflictos_asignacion_reservas_total:monthly
+        expr: horse_reserved_conflictos_asignacion_reservas_total
+
+      # 3.3.2 Gestión de recursos
+      - record: hr:cancelacion_sobre_confirmadas_ratio:monthly
+        expr: 100 * horse_reserved_reservas_canceladas_total / clamp_min(horse_reserved_reservas_confirmadas_total, 1)
+
+      - record: hr:ocupacion_recursos_ratio:monthly
+        expr: 100 * horse_reserved_recursos_asignados_total / clamp_min(horse_reserved_recursos_disponibles_total, 1)
+
+      # 3.3.3 Gestión de rutas
+      - record: hr:cupos_no_usados_ratio_por_ruta:monthly
+        expr: 100 * horse_reserved_cupos_no_usados_ruta_total / clamp_min(horse_reserved_cupos_totales_ruta_total, 1)
+
+      - record: hr:rutas_activas_utilizadas_ratio:monthly
+        expr: 100 * horse_reserved_rutas_activas_con_reserva_total / clamp_min(horse_reserved_rutas_activas_total, 1)
+
+      # 3.4.1 Calidad de reservas
+      - record: hr:tiempo_promedio_procesamiento_reserva_segundos
+        expr: horse_reserved_tiempo_procesamiento_reserva_segundos_sum / clamp_min(horse_reserved_tiempo_procesamiento_reserva_segundos_count, 1)
+
+      - record: hr:exactitud_datos_participantes_ratio
+        expr: 100 * horse_reserved_reservas_datos_participantes_validos_total / clamp_min(horse_reserved_reservas_creadas_total, 1)
+
+      - record: hr:indice_conflictos_disponibilidad_ratio
+        expr: 100 * horse_reserved_reservas_con_conflicto_disponibilidad_total / clamp_min(horse_reserved_intentos_reserva_total, 1)
+
+  - name: horse_reserved_quality_alerts
+    interval: 1m
+    rules:
+      - alert: BajaConfirmacionReservas
+        expr: hr:reservas_confirmadas_ratio:monthly < 80
+        for: 15m
+        labels:
+          severity: warning
+          process: gestion_reservas
+        annotations:
+          summary: "Tasa de confirmación de reservas por debajo del 80%"
+          description: "La tasa actual es {{ $value }}%. Revisar disponibilidad, validaciones y notificaciones."
+
+      - alert: AltaCancelacionReservas
+        expr: hr:cancelacion_sobre_confirmadas_ratio:monthly > 10
+        for: 15m
+        labels:
+          severity: warning
+          process: gestion_reservas
+        annotations:
+          summary: "Tasa de cancelación sobre confirmadas mayor al 10%"
+          description: "La tasa actual es {{ $value }}%. Revisar UX, comunicación y precios."
+
+      - alert: TiempoProcesamientoReservaAlto
+        expr: hr:tiempo_promedio_procesamiento_reserva_segundos > 120
+        for: 15m
+        labels:
+          severity: warning
+          process: gestion_reservas
+        annotations:
+          summary: "Tiempo promedio de procesamiento de reserva por encima del umbral"
+          description: "El promedio actual es {{ $value }} segundos."
+
+      - alert: ConflictosDisponibilidadAltos
+        expr: hr:indice_conflictos_disponibilidad_ratio > 5
+        for: 15m
+        labels:
+          severity: critical
+          process: gestion_reservas
+        annotations:
+          summary: "Índice de conflictos de disponibilidad por encima del 5%"
+          description: "El índice actual es {{ $value }}%."

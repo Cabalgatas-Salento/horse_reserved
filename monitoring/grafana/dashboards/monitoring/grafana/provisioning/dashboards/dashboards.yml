@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'Horse Reserved Calidad'
+    orgId: 1
+    folder: 'Calidad'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards

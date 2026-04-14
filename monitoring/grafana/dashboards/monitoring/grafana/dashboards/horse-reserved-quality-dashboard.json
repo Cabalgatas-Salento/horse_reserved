@@ -1,0 +1,127 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 80}, {"color": "green", "value": 90}]}}},
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"expr": "hr:reservas_confirmadas_ratio:monthly", "refId": "A"}],
+      "title": "Tasa confirmación reservas",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 5}, {"color": "red", "value": 10}]}}},
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"expr": "hr:cancelacion_sobre_confirmadas_ratio:monthly", "refId": "A"}],
+      "title": "Tasa cancelación reservas",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 120}, {"color": "red", "value": 180}]}}},
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"expr": "hr:tiempo_promedio_procesamiento_reserva_segundos", "refId": "A"}],
+      "title": "Tiempo promedio procesamiento",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 3}, {"color": "red", "value": 5}]}}},
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"expr": "hr:indice_conflictos_disponibilidad_ratio", "refId": "A"}],
+      "title": "Índice conflictos disponibilidad",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 5,
+      "targets": [
+        {"expr": "hr:ocupacion_recursos_ratio:monthly", "legendFormat": "Ocupación recursos", "refId": "A"},
+        {"expr": "hr:rutas_activas_utilizadas_ratio:monthly", "legendFormat": "Rutas activas utilizadas", "refId": "B"}
+      ],
+      "title": "Gestión de recursos y rutas (%)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 6,
+      "targets": [
+        {"expr": "hr:cupos_no_usados_ratio_por_ruta:monthly", "legendFormat": "Ruta {{ruta_id}}", "refId": "A"}
+      ],
+      "title": "Cupos no usados por ruta (%)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+      "id": 7,
+      "targets": [
+        {"expr": "horse_reserved_conflictos_asignacion_reservas_total", "legendFormat": "Conflictos asignación", "refId": "A"},
+        {"expr": "horse_reserved_reservas_canceladas_total", "legendFormat": "Reservas canceladas", "refId": "B"},
+        {"expr": "horse_reserved_reservas_confirmadas_total", "legendFormat": "Reservas confirmadas", "refId": "C"}
+      ],
+      "title": "Volumen mensual de reservas",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "orange", "value": 80},
+              {"color": "green", "value": 90}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 4},
+      "id": 8,
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"expr": "hr:exactitud_datos_participantes_ratio", "refId": "A"}],
+      "title": "Exactitud datos participantes",
+      "type": "stat"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["calidad", "reservas", "prometheus"],
+  "templating": {"list": []},
+  "time": {"from": "now-30d", "to": "now"},
+  "title": "Horse Reserved - Métricas de Calidad",
+  "uid": "horse-reserved-quality",
+  "version": 1
+}
