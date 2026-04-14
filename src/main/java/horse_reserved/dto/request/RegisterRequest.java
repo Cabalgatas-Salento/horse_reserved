@@ -10,11 +10,13 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import horse_reserved.validation.ValidDocumento;
 
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@ValidDocumento
 public class RegisterRequest {
 
     @NotBlank(message = "El primer nombre es obligatorio")

@@ -2,6 +2,7 @@ package horse_reserved.dto.request;
 
 import jakarta.validation.constraints.*;
 import lombok.*;
+import horse_reserved.validation.ValidDocumento;
 
 import java.math.BigDecimal;
 
@@ -10,6 +11,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ValidDocumento
 /**
  * Clase que sirve para tranformar los objetos en informacion necesario para
  * las peticiones
