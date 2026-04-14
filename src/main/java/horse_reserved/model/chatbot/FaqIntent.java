@@ -36,6 +36,8 @@ public class FaqIntent {
     public static class Response {
         private String text;
         private Action action;
+        private String endpoint;
+        private Boolean authRequired;
         private List<String> notes;
     }
 }

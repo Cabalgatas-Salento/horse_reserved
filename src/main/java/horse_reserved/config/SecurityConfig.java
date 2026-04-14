@@ -57,7 +57,7 @@ public class SecurityConfig {
                         // Endpoints que requieren autenticación
                         .requestMatchers("/api/reservaciones/**").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
                         .requestMatchers("/api/pagos/intentos").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
-                        .requestMatchers("/api/pagos/intentos/**","api/pagos/transacciones/**").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
+                        .requestMatchers("/api/pagos/intentos/**", "/api/pagos/transacciones/**").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
                         .requestMatchers("/api/pagos/reembolsos").hasAnyAuthority("OPERADOR", "ADMINISTRADOR")
                         .requestMatchers("/api/salidas/**").hasAnyAuthority("OPERADOR", "ADMINISTRADOR")
 
