@@ -20,6 +20,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,9 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+
+    @Value("${jwt.expiration}")
+    private Long jwtExpiration;
 
     /**
      * Registra un nuevo cliente en el sistema
@@ -79,7 +83,7 @@ public class AuthService {
         return AuthResponse.builder()
                 .token(jwtToken)
                 .type("Bearer")
-                .expiresIn(1800L) // 30 minutos
+                .expiresIn(jwtExpiration / 1000)
                 .userId(usuario.getId())
                 .email(usuario.getEmail())
                 .primerNombre(usuario.getPrimerNombre())
@@ -132,7 +136,7 @@ public class AuthService {
         return AuthResponse.builder()
                 .token(jwtToken)
                 .type("Bearer")
-                .expiresIn(1800L)
+                .expiresIn(jwtExpiration / 1000)
                 .userId(usuario.getId())
                 .email(usuario.getEmail())
                 .primerNombre(usuario.getPrimerNombre())
