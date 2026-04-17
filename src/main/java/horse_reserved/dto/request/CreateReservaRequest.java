@@ -1,5 +1,6 @@
 package horse_reserved.dto.request;
 
+import horse_reserved.validation.ValidHoraInicio;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -28,6 +29,7 @@ public class CreateReservaRequest {
     private LocalDate fecha;
 
     @NotNull
+    @ValidHoraInicio
     private LocalTime horaInicio;
 
     @Min(1)
