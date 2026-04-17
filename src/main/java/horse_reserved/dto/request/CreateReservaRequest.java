@@ -26,6 +26,7 @@ public class CreateReservaRequest {
     private Long rutaId;
 
     @NotNull
+    @FutureOrPresent
     private LocalDate fecha;
 
     @NotNull

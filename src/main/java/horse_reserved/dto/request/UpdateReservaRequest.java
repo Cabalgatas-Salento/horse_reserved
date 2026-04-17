@@ -24,6 +24,7 @@ public class UpdateReservaRequest {
     private Long rutaId;
 
     @NotNull
+    @FutureOrPresent
     private LocalDate fecha;
 
     @NotNull
