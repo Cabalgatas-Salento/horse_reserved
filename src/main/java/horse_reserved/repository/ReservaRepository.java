@@ -33,4 +33,8 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
           and r.estado <> 'cancelado'
     """)
     long sumPersonasReservadasActivasBySalida(@Param("salidaId") Long salidaId);
+
+    @Modifying
+    @Query("UPDATE Reserva r SET r.estado = 'completado' WHERE r.salida.id IN :salidaIds AND r.estado = 'reservado'")
+    int completarPorSalidaIds(@Param("salidaIds") List<Long> salidaIds);
 }
