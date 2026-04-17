@@ -37,6 +37,7 @@ public class ReservaService {
     private final GuiaRepository guiaRepository;
     private final UsuarioRepository usuarioRepository;
     private final ReservaMapper reservaMapper;
+    private final EmailService emailService;
 
     @PersistenceContext
     private EntityManager em;
@@ -121,6 +122,27 @@ public class ReservaService {
 
         Reserva saved = reservaRepository.save(reserva);
         log.info("Reserva creada exitosamente — reservaId={}, salidaId={}", saved.getId(), salida.getId());
+
+        if (saved.getCliente() != null) {
+            Ruta ruta = salida.getRuta();
+            List<String> guiasNombres = salida.getGuias().stream().map(Guia::getNombre).toList();
+            List<String> caballosNombres = salida.getCaballos().stream().map(Caballo::getNombre).toList();
+            List<String> participantesNombres = saved.getParticipantes().stream()
+                    .map(p -> p.getPrimerNombre() + " " + p.getPrimerApellido()).toList();
+
+            emailService.sendReservaConfirmacionEmail(
+                    saved.getCliente().getEmail(), saved.getCliente().getPrimerNombre(), saved.getId(),
+                    ruta.getNombre(), salida.getFechaProgramada(),
+                    salida.getTiempoInicio(), salida.getTiempoFin(),
+                    saved.getCantPersonas(), saved.getPrecioUnitario(), saved.getPrecioTotal(),
+                    participantesNombres);
+            emailService.sendProgramacionSalidaEmail(
+                    saved.getCliente().getEmail(), saved.getCliente().getPrimerNombre(), saved.getId(),
+                    ruta.getNombre(), ruta.getDescripcion(),
+                    salida.getFechaProgramada(), salida.getTiempoInicio(), salida.getTiempoFin(),
+                    ruta.getDuracionMinutos(), guiasNombres, caballosNombres);
+        }
+
         return reservaMapper.toResponse(saved);
     }
 
