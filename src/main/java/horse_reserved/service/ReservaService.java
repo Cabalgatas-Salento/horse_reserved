@@ -85,10 +85,11 @@ public class ReservaService {
                             request.getHoraInicio(), request.getCantPersonas());
                 });
 
+        long ocupados = reservaRepository.sumPersonasReservadasActivasBySalida(salida.getId());
+        expandirCaballosSiNecesario(salida, ocupados, request.getCantPersonas());
         validarCupoDisponible(salida, request.getCantPersonas());
 
-        long totalPersonas = reservaRepository.sumPersonasReservadasActivasBySalida(salida.getId())
-                + request.getCantPersonas();
+        long totalPersonas = ocupados + request.getCantPersonas();
         asignarGuiasSalida(salida, totalPersonas);
 
         BigDecimal precioUnitario = salida.getRuta().getPrecio();
@@ -173,15 +174,17 @@ public class ReservaService {
                     .findProgramadaByRutaAndFechaAndHora(request.getRutaId(), request.getFecha(), request.getHoraInicio())
                     .orElseGet(() -> crearNuevaSalida(
                             request.getRutaId(), request.getFecha(), request.getHoraInicio(), request.getCantPersonas()));
+            long ocupadosSalida = reservaRepository.sumPersonasReservadasActivasBySalida(nuevaSalida.getId());
+            expandirCaballosSiNecesario(nuevaSalida, ocupadosSalida, request.getCantPersonas());
             validarCupoDisponible(nuevaSalida, request.getCantPersonas());
-            long total = reservaRepository.sumPersonasReservadasActivasBySalida(nuevaSalida.getId())
-                    + request.getCantPersonas();
+            long total = ocupadosSalida + request.getCantPersonas();
             asignarGuiasSalida(nuevaSalida, total);
         } else {
             nuevaSalida = salidaActual;
             // Desconta la reserva actual para no doble-contarla en la validación de cupo
             long ocupadosNetos = reservaRepository.sumPersonasReservadasActivasBySalida(nuevaSalida.getId())
                     - reserva.getCantPersonas();
+            expandirCaballosSiNecesario(nuevaSalida, ocupadosNetos, request.getCantPersonas());
             int maximo = nuevaSalida.getCaballos().size();
             if (maximo == 0) {
                 throw new BusinessRuleException("La salida no tiene caballos asignados");
@@ -313,7 +316,7 @@ public class ReservaService {
                 .estado("programado")
                 .build();
 
-        caballos.forEach(nueva::agregarCaballo);
+        caballos.stream().limit(cantPersonas).forEach(nueva::agregarCaballo);
         asignarGuiasSalida(nueva, (long) cantPersonas);
 
         return salidaRepository.save(nueva);
@@ -353,6 +356,21 @@ public class ReservaService {
      * @param salida
      * @param nuevosCupos
      */
+    private void expandirCaballosSiNecesario(Salida salida, long ocupadosBase, int personasAdicionales) {
+        int maximo = salida.getCaballos().size();
+        int faltantes = (int)(ocupadosBase + personasAdicionales) - maximo;
+        if (faltantes <= 0) return;
+
+        List<Caballo> disponibles = caballoRepository.findDisponibles(
+                salida.getFechaProgramada(), salida.getTiempoInicio(), salida.getTiempoFin());
+
+        if (disponibles.size() < faltantes) {
+            throw new BusinessRuleException(
+                    "No hay suficientes caballos disponibles. Faltan: " + faltantes + ", disponibles: " + disponibles.size());
+        }
+        disponibles.stream().limit(faltantes).forEach(salida::agregarCaballo);
+    }
+
     private void validarCupoDisponible(Salida salida, int nuevosCupos) {
         long ocupados = reservaRepository.sumPersonasReservadasActivasBySalida(salida.getId());
         int maximo = salida.getCaballos().size();
