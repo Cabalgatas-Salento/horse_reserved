@@ -319,7 +319,18 @@ public class ReservaService {
 
         reserva.setEstado("cancelado");
         log.info("Reserva cancelada — reservaId={}", reservaId);
-        return reservaMapper.toResponse(reservaRepository.save(reserva));
+
+        Reserva cancelada = reservaRepository.save(reserva);
+
+        if (cancelada.getCliente() != null) {
+            Salida salida = cancelada.getSalida();
+            emailService.sendReservaCancelacionEmail(
+                    cancelada.getCliente().getEmail(), cancelada.getCliente().getPrimerNombre(), cancelada.getId(),
+                    salida.getRuta().getNombre(), salida.getFechaProgramada(),
+                    salida.getTiempoInicio(), salida.getTiempoFin());
+        }
+
+        return reservaMapper.toResponse(cancelada);
     }
 
     // ===================== VALIDACIONES =====================

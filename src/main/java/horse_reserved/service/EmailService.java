@@ -118,6 +118,15 @@ public class EmailService {
         sendHtml(toEmail, subject, htmlBody, "programación actualizada de salida");
     }
 
+    @Async
+    public void sendReservaCancelacionEmail(
+            String toEmail, String clienteNombre, Long reservaId,
+            String rutaNombre, LocalDate fecha, LocalTime horaInicio, LocalTime horaFin) {
+        String subject = "Reserva cancelada #" + reservaId + " - Horse Reserved";
+        String htmlBody = buildCancelacionEmailBody(clienteNombre, reservaId, rutaNombre, fecha, horaInicio, horaFin);
+        sendHtml(toEmail, subject, htmlBody, "cancelación de reserva");
+    }
+
     private void sendHtml(String toEmail, String subject, String htmlBody, String tipo) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -365,5 +374,62 @@ public class EmailService {
                 duracionTexto,
                 guiasHtml,
                 caballosHtml);
+    }
+
+    private String buildCancelacionEmailBody(
+            String clienteNombre, Long reservaId, String rutaNombre,
+            LocalDate fecha, LocalTime horaInicio, LocalTime horaFin) {
+
+        DateTimeFormatter fechaFmt = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es-CO"));
+
+        return """
+                <!DOCTYPE html>
+                <html lang="es">
+                <head><meta charset="UTF-8"><title>Reserva cancelada</title></head>
+                <body style="font-family:Arial,sans-serif;background-color:#f4f4f4;margin:0;padding:20px;">
+                  <div style="max-width:600px;margin:auto;">
+                    <div style="background-color:#2c3e50;padding:24px;border-radius:8px 8px 0 0;text-align:center;">
+                      <h1 style="color:#ffffff;margin:0;font-size:22px;letter-spacing:1px;">Horse Reserved</h1>
+                    </div>
+                    <div style="background-color:#ffffff;padding:40px;border-radius:0 0 8px 8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                      <h2 style="color:#2c3e50;margin-top:0;">Tu reserva ha sido cancelada</h2>
+                      <p style="color:#555;font-size:16px;">
+                        Hola, <strong>%s</strong>. Te informamos que tu reserva <strong>#%d</strong> ha sido cancelada.
+                      </p>
+                      <table style="width:100%%;border-collapse:collapse;margin:24px 0;font-size:15px;">
+                        <tr style="background-color:#f8f9fa;">
+                          <td style="padding:10px 14px;color:#888;font-weight:bold;width:40%%;">Ruta</td>
+                          <td style="padding:10px 14px;color:#2c3e50;">%s</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:10px 14px;color:#888;font-weight:bold;">Fecha</td>
+                          <td style="padding:10px 14px;color:#2c3e50;">%s</td>
+                        </tr>
+                        <tr style="background-color:#f8f9fa;">
+                          <td style="padding:10px 14px;color:#888;font-weight:bold;">Horario</td>
+                          <td style="padding:10px 14px;color:#2c3e50;">%s – %s</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:10px 14px;color:#888;font-weight:bold;">Estado</td>
+                          <td style="padding:10px 14px;color:#c0392b;font-weight:bold;">Cancelada</td>
+                        </tr>
+                      </table>
+                      <p style="color:#888;font-size:13px;">
+                        Si crees que esto es un error o deseas hacer una nueva reserva, contáctanos o visita nuestra plataforma.
+                      </p>
+                      <hr style="border:none;border-top:1px solid #eee;margin:32px 0;">
+                      <p style="color:#aaa;font-size:12px;text-align:center;">
+                        © 2026 Horse Reserved. Todos los derechos reservados.
+                      </p>
+                    </div>
+                  </div>
+                </body>
+                </html>
+                """.formatted(
+                clienteNombre, reservaId,
+                rutaNombre,
+                fecha.format(fechaFmt),
+                horaInicio.format(DateTimeFormatter.ofPattern("HH:mm")),
+                horaFin.format(DateTimeFormatter.ofPattern("HH:mm")));
     }
 }
