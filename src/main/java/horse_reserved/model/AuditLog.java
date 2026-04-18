@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.Immutable;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "audit_log")
@@ -20,7 +20,7 @@ public class AuditLog {
     private Long id;
 
     @Column(name = "ocurrido_en", nullable = false, updatable = false)
-    private Instant ocurridoEn;
+    private LocalDateTime ocurridoEn;
 
     @Column(name = "usuario_id", updatable = false)
     private Long usuarioId;

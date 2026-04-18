@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
@@ -25,8 +25,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
             @Param("categoria") AuditCategoria categoria,
             @Param("usuarioEmail") String usuarioEmail,
             @Param("resultado") String resultado,
-            @Param("desde") Instant desde,
-            @Param("hasta") Instant hasta,
+            @Param("desde") LocalDateTime desde,
+            @Param("hasta") LocalDateTime hasta,
             Pageable pageable
     );
 }

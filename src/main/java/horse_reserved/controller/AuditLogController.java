@@ -11,9 +11,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @RestController
 @RequestMapping("/api/admin/audit-logs")
@@ -34,8 +34,8 @@ public class AuditLogController {
                 filtro.getCategoria(),
                 filtro.getUsuarioEmail(),
                 filtro.getResultado(),
-                toInstantStart(filtro.getDesde()),
-                toInstantEnd(filtro.getHasta()),
+                toLocalStart(filtro.getDesde()),
+                toLocalEnd(filtro.getHasta()),
                 pageable
         );
 
@@ -45,7 +45,7 @@ public class AuditLogController {
     private AuditLogResponse toResponse(AuditLog a) {
         return AuditLogResponse.builder()
                 .id(a.getId())
-                .ocurridoEn(a.getOcurridoEn())
+                .ocurridoEn(a.getOcurridoEn().atZone(ZoneId.of("America/Bogota")).toInstant())
                 .usuarioId(a.getUsuarioId())
                 .usuarioEmail(a.getUsuarioEmail())
                 .categoria(a.getCategoria().name())
@@ -58,11 +58,11 @@ public class AuditLogController {
                 .build();
     }
 
-    private Instant toInstantStart(LocalDate date) {
-        return date == null ? null : date.atStartOfDay().toInstant(ZoneOffset.UTC);
+    private LocalDateTime toLocalStart(LocalDate date) {
+        return date == null ? null : date.atStartOfDay();
     }
 
-    private Instant toInstantEnd(LocalDate date) {
-        return date == null ? null : date.atTime(23, 59, 59).toInstant(ZoneOffset.UTC);
+    private LocalDateTime toLocalEnd(LocalDate date) {
+        return date == null ? null : date.atTime(23, 59, 59);
     }
 }

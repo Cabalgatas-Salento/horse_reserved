@@ -11,7 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Slf4j
 @Service
@@ -20,15 +21,7 @@ public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
 
-    /**
-     * Persiste el log en una transacción independiente (REQUIRES_NEW) y de forma
-     * asíncrona (@Async). REQUIRES_NEW garantiza que el log persiste aunque la
-     * transacción del llamador haga rollback. El try-catch interno impide que un
-     * fallo de auditoría afecte el flujo principal.
-     */
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void registrar(
+    private void registrar(
             Long usuarioId,
             String usuarioEmail,
             AuditCategoria categoria,
@@ -41,7 +34,7 @@ public class AuditLogService {
     ) {
         try {
             AuditLog entry = AuditLog.builder()
-                    .ocurridoEn(Instant.now())
+                    .ocurridoEn(LocalDateTime.now(ZoneId.of("America/Bogota")))
                     .usuarioId(usuarioId)
                     .usuarioEmail(usuarioEmail)
                     .categoria(categoria)
@@ -59,18 +52,24 @@ public class AuditLogService {
         }
     }
 
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void registrarExito(Long usuarioId, String email,
                                 AuditCategoria categoria, AuditAccion accion,
                                 String entidadTipo, Long entidadId, String ip) {
         registrar(usuarioId, email, categoria, accion, "EXITO", null, entidadTipo, entidadId, ip);
     }
 
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void registrarFallo(Long usuarioId, String email,
                                 AuditCategoria categoria, AuditAccion accion,
                                 String detalle, String ip) {
         registrar(usuarioId, email, categoria, accion, "FALLO", detalle, null, null, ip);
     }
 
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void registrarErrorSistema(String detalle, String ip) {
         registrar(null, null, AuditCategoria.SISTEMA, AuditAccion.ERROR_INTERNO,
                 "ERROR_SISTEMA", detalle, null, null, ip);
