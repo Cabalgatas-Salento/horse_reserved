@@ -12,6 +12,9 @@ import horse_reserved.model.Usuario;
 import horse_reserved.repository.UsuarioRepository;
 import horse_reserved.dto.response.UserProfileResponse;
 import horse_reserved.dto.request.ChangePasswordRequest;
+import horse_reserved.model.AuditAccion;
+import horse_reserved.model.AuditCategoria;
+import horse_reserved.util.HttpRequestUtil;
 import horse_reserved.util.LogMaskUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -37,6 +40,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final AuditLogService auditLogService;
 
     @Value("${jwt.expiration}")
     private Long jwtExpiration;
@@ -78,6 +82,9 @@ public class AuthService {
         String jwtToken = jwtService.generateToken(usuario, extraClaims);
 
         log.info("Registro exitoso para: {}", LogMaskUtil.maskEmail(request.getEmail()));
+        auditLogService.registrarExito(usuario.getId(), usuario.getEmail(),
+                AuditCategoria.AUTENTICACION, AuditAccion.REGISTRO_EXITOSO,
+                "USUARIO", usuario.getId(), HttpRequestUtil.obtenerIpCliente());
 
         // Retornar respuesta
         return AuthResponse.builder()
@@ -108,6 +115,9 @@ public class AuthService {
             );
         } catch (AuthenticationException e) {
             log.warn("Login fallido para {}: {}", LogMaskUtil.maskEmail(request.getEmail()), e.getMessage());
+            auditLogService.registrarFallo(null, request.getEmail(),
+                    AuditCategoria.AUTENTICACION, AuditAccion.LOGIN_FALLIDO,
+                    "Credenciales inválidas", HttpRequestUtil.obtenerIpCliente());
             throw new InvalidCredentialsException("Email o contraseña incorrectos");
         }
 
@@ -132,6 +142,9 @@ public class AuthService {
         String jwtToken = jwtService.generateToken(usuario, extraClaims);
 
         log.info("Login exitoso para: {}", LogMaskUtil.maskEmail(request.getEmail()));
+        auditLogService.registrarExito(usuario.getId(), usuario.getEmail(),
+                AuditCategoria.AUTENTICACION, AuditAccion.LOGIN_EXITOSO,
+                null, null, HttpRequestUtil.obtenerIpCliente());
         // Retornar respuesta
         return AuthResponse.builder()
                 .token(jwtToken)
@@ -208,5 +221,8 @@ public class AuthService {
         usuario.setPasswordChangedAt(Instant.now());
         usuarioRepository.save(usuario);
         log.info("Cambio de contraseña completado");
+        auditLogService.registrarExito(usuario.getId(), usuario.getEmail(),
+                AuditCategoria.CUENTA, AuditAccion.CAMBIO_PASSWORD,
+                null, null, HttpRequestUtil.obtenerIpCliente());
     }
 }

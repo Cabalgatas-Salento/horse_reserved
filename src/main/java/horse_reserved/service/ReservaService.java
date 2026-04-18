@@ -7,6 +7,9 @@ import horse_reserved.dto.response.ReservaResponse;
 import horse_reserved.exception.*;
 import horse_reserved.model.*;
 import horse_reserved.repository.*;
+import horse_reserved.model.AuditAccion;
+import horse_reserved.model.AuditCategoria;
+import horse_reserved.util.HttpRequestUtil;
 import horse_reserved.util.LogMaskUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -38,6 +41,7 @@ public class ReservaService {
     private final UsuarioRepository usuarioRepository;
     private final ReservaMapper reservaMapper;
     private final EmailService emailService;
+    private final AuditLogService auditLogService;
 
     @PersistenceContext
     private EntityManager em;
@@ -122,6 +126,11 @@ public class ReservaService {
 
         Reserva saved = reservaRepository.save(reserva);
         log.info("Reserva creada exitosamente — reservaId={}, salidaId={}", saved.getId(), salida.getId());
+        auditLogService.registrarExito(
+                saved.getCliente() != null ? saved.getCliente().getId() : null,
+                saved.getCliente() != null ? saved.getCliente().getEmail() : autenticado.getEmail(),
+                AuditCategoria.RESERVA, AuditAccion.RESERVA_CREADA,
+                "RESERVA", saved.getId(), HttpRequestUtil.obtenerIpCliente());
 
         if (saved.getCliente() != null) {
             Ruta ruta = salida.getRuta();
@@ -243,6 +252,11 @@ public class ReservaService {
         reserva.setPrecioUnitario(precioUnitario);
         reserva.setPrecioTotal(precioUnitario.multiply(BigDecimal.valueOf(request.getCantPersonas())));
         log.info("Reserva actualizada — reservaId={}", reservaId);
+        auditLogService.registrarExito(
+                reserva.getCliente() != null ? reserva.getCliente().getId() : null,
+                reserva.getCliente() != null ? reserva.getCliente().getEmail() : actual.getEmail(),
+                AuditCategoria.RESERVA, AuditAccion.RESERVA_ACTUALIZADA,
+                "RESERVA", reservaId, HttpRequestUtil.obtenerIpCliente());
 
         Reserva updated = reservaRepository.save(reserva);
 
@@ -323,6 +337,11 @@ public class ReservaService {
 
         reserva.setEstado("cancelado");
         log.info("Reserva cancelada — reservaId={}", reservaId);
+        auditLogService.registrarExito(
+                reserva.getCliente() != null ? reserva.getCliente().getId() : null,
+                reserva.getCliente() != null ? reserva.getCliente().getEmail() : actual.getEmail(),
+                AuditCategoria.RESERVA, AuditAccion.RESERVA_CANCELADA,
+                "RESERVA", reservaId, HttpRequestUtil.obtenerIpCliente());
 
         Reserva cancelada = reservaRepository.save(reserva);
 

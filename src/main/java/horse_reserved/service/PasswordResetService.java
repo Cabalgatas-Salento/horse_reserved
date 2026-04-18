@@ -5,6 +5,9 @@ import horse_reserved.model.PasswordResetToken;
 import horse_reserved.model.Usuario;
 import horse_reserved.repository.PasswordResetTokenRepository;
 import horse_reserved.repository.UsuarioRepository;
+import horse_reserved.model.AuditAccion;
+import horse_reserved.model.AuditCategoria;
+import horse_reserved.util.HttpRequestUtil;
 import horse_reserved.util.LogMaskUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +35,7 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final AuditLogService auditLogService;
 
     /**
      * Procesa la solicitud de restablecimiento de contraseña.
@@ -79,6 +83,9 @@ public class PasswordResetService {
         );
 
         log.info("Token de restablecimiento generado para usuario id={}", usuario.getId());
+        auditLogService.registrarExito(usuario.getId(), usuario.getEmail(),
+                AuditCategoria.CUENTA, AuditAccion.RESET_PASSWORD_SOLICITADO,
+                null, null, HttpRequestUtil.obtenerIpCliente());
     }
 
     /**
@@ -112,5 +119,8 @@ public class PasswordResetService {
         tokenRepository.save(resetToken);
 
         log.info("Contraseña restablecida exitosamente para: {}", LogMaskUtil.maskEmail(usuario.getEmail()));
+        auditLogService.registrarExito(usuario.getId(), usuario.getEmail(),
+                AuditCategoria.CUENTA, AuditAccion.RESET_PASSWORD_COMPLETADO,
+                null, null, HttpRequestUtil.obtenerIpCliente());
     }
 }

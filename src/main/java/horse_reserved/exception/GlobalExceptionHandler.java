@@ -1,6 +1,9 @@
 package horse_reserved.exception;
 
 import horse_reserved.dto.response.ErrorResponse;
+import horse_reserved.service.AuditLogService;
+import horse_reserved.util.HttpRequestUtil;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +24,10 @@ import java.util.Map;
  */
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final AuditLogService auditLogService;
 
     /**
      * Maneja la excepción cuando un email ya existe
@@ -141,8 +147,10 @@ public class GlobalExceptionHandler {
                 .path(request.getDescription(false).replace("uri=", ""))
                 .build();
 
-        // Log del error para debugging
         ex.printStackTrace();
+        auditLogService.registrarErrorSistema(
+                ex.getClass().getSimpleName() + ": " + ex.getMessage(),
+                HttpRequestUtil.obtenerIpCliente());
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }

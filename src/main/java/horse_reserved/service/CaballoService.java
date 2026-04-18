@@ -4,9 +4,13 @@ import horse_reserved.dto.request.CaballoRequest;
 import horse_reserved.dto.response.CaballoResponse;
 import horse_reserved.exception.ResourceNotFoundException;
 import horse_reserved.model.Caballo;
+import horse_reserved.model.AuditAccion;
+import horse_reserved.model.AuditCategoria;
 import horse_reserved.repository.CaballoRepository;
+import horse_reserved.util.HttpRequestUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +22,7 @@ import java.util.List;
 public class CaballoService {
 
     private final CaballoRepository caballoRepository;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public List<CaballoResponse> listar(Boolean soloActivos) {
@@ -42,7 +47,10 @@ public class CaballoService {
                 .raza(request.getRaza().trim())
                 .activo(request.isActivo())
                 .build();
-        return toResponse(caballoRepository.save(caballo));
+        CaballoResponse resp = toResponse(caballoRepository.save(caballo));
+        auditLogService.registrarExito(null, emailAdmin(), AuditCategoria.RECURSO_ADMIN,
+                AuditAccion.CABALLO_CREADO, "CABALLO", resp.getId(), HttpRequestUtil.obtenerIpCliente());
+        return resp;
     }
 
     @Transactional
@@ -53,7 +61,10 @@ public class CaballoService {
         caballo.setNombre(request.getNombre().trim());
         caballo.setRaza(request.getRaza().trim());
         caballo.setActivo(request.isActivo());
-        return toResponse(caballoRepository.save(caballo));
+        CaballoResponse resp = toResponse(caballoRepository.save(caballo));
+        auditLogService.registrarExito(null, emailAdmin(), AuditCategoria.RECURSO_ADMIN,
+                AuditAccion.CABALLO_ACTUALIZADO, "CABALLO", resp.getId(), HttpRequestUtil.obtenerIpCliente());
+        return resp;
     }
 
     @Transactional
@@ -62,7 +73,14 @@ public class CaballoService {
         Caballo caballo = caballoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Caballo no encontrado: " + id));
         caballo.setActivo(activo);
-        return toResponse(caballoRepository.save(caballo));
+        CaballoResponse resp = toResponse(caballoRepository.save(caballo));
+        auditLogService.registrarExito(null, emailAdmin(), AuditCategoria.RECURSO_ADMIN,
+                AuditAccion.CABALLO_ESTADO_CAMBIADO, "CABALLO", resp.getId(), HttpRequestUtil.obtenerIpCliente());
+        return resp;
+    }
+
+    private String emailAdmin() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 
     private CaballoResponse toResponse(Caballo c) {
