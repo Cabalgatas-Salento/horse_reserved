@@ -190,6 +190,10 @@ public class ReservaService {
                 || !salidaActual.getFechaProgramada().equals(request.getFecha())
                 || !salidaActual.getTiempoInicio().equals(request.getHoraInicio());
 
+        if (salidaCambia && !request.getFecha().isAfter(LocalDate.now())) {
+            throw new BusinessRuleException("La nueva fecha debe ser al menos 1 día después de hoy");
+        }
+
         Salida nuevaSalida;
         if (salidaCambia) {
             nuevaSalida = salidaRepository
@@ -345,6 +349,9 @@ public class ReservaService {
         }
         if (request.getCantPersonas() != request.getParticipantes().size()) {
             throw new BusinessRuleException("cantPersonas debe coincidir con el número de participantes");
+        }
+        if (!request.getFecha().isAfter(LocalDate.now())) {
+            throw new BusinessRuleException("La fecha de reserva debe ser al menos 1 día después de hoy");
         }
     }
 
