@@ -26,6 +26,7 @@ public class IntentMatcher {
      * junto con su score.
      * Aplica una combinación ponderada de similitud por utterances
      * y coincidencia de keywords, incluyendo lógica de desempate.
+     * La query se expande con los sinónimos de cada intent antes del scoring.
      */
     public MatchResult findBestMatch(String userQuestion, List<FaqIntent> intents) {
         if (intents == null || intents.isEmpty()) {
@@ -41,13 +42,18 @@ public class IntentMatcher {
 
         for (FaqIntent intent : intents) {
 
+            String expanded = normalizer.normalizeWithSynonyms(normalized, intent.getSynonyms());
+
             double utteranceScore = scorer.scoreByUtterances(
-                    normalized, intent.getUtterances(), normalizer);
+                    expanded, intent.getUtterances(), normalizer);
 
             double keywordScore = scorer.scoreByKeywords(
-                    normalized, normalizeList(intent.getKeywords()));
+                    expanded, normalizeList(intent.getKeywords()));
 
-            double finalScore = (0.60 * utteranceScore) + (0.40 * keywordScore);
+            // Coincidencia exacta de utterance no debe ser penalizada por keywords escasos
+            double finalScore = (utteranceScore >= 1.0 - EPS)
+                    ? utteranceScore
+                    : (0.60 * utteranceScore) + (0.40 * keywordScore);
 
             boolean betterScore = finalScore > bestScore;
             boolean tieScore = Math.abs(finalScore - bestScore) < EPS;
