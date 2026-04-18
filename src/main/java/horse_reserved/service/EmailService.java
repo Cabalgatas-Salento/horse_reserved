@@ -73,20 +73,23 @@ public class EmailService {
             int cantPersonas, BigDecimal precioUnitario, BigDecimal precioTotal,
             List<String> participantesNombres) {
         String subject = "Reserva confirmada #" + reservaId + " - Horse Reserved";
-        String htmlBody = buildConfirmacionEmailBody(clienteNombre, reservaId, rutaNombre,
-                fecha, horaInicio, horaFin, cantPersonas, precioUnitario, precioTotal, participantesNombres);
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(fromAddress);
-            helper.setTo(toEmail);
-            helper.setSubject(subject);
-            helper.setText(htmlBody, true);
-            mailSender.send(message);
-            log.info("Correo de confirmación de reserva enviado a: {}", toEmail);
-        } catch (MessagingException | MailException e) {
-            log.error("Error al enviar correo de confirmación de reserva a {}: {}", toEmail, e.getMessage());
-        }
+        String htmlBody = buildResumenEmailBody("¡Tu reserva está confirmada!", clienteNombre, reservaId,
+                rutaNombre, fecha, horaInicio, horaFin, cantPersonas, precioUnitario, precioTotal,
+                participantesNombres);
+        sendHtml(toEmail, subject, htmlBody, "confirmación de reserva");
+    }
+
+    @Async
+    public void sendReservaActualizacionEmail(
+            String toEmail, String clienteNombre, Long reservaId,
+            String rutaNombre, LocalDate fecha, LocalTime horaInicio, LocalTime horaFin,
+            int cantPersonas, BigDecimal precioUnitario, BigDecimal precioTotal,
+            List<String> participantesNombres) {
+        String subject = "Reserva actualizada #" + reservaId + " - Horse Reserved";
+        String htmlBody = buildResumenEmailBody("Tu reserva ha sido actualizada", clienteNombre, reservaId,
+                rutaNombre, fecha, horaInicio, horaFin, cantPersonas, precioUnitario, precioTotal,
+                participantesNombres);
+        sendHtml(toEmail, subject, htmlBody, "actualización de reserva");
     }
 
     @Async
@@ -96,8 +99,26 @@ public class EmailService {
             LocalDate fecha, LocalTime horaInicio, LocalTime horaFin, int duracionMinutos,
             List<String> guiasNombres, List<String> caballosNombres) {
         String subject = "Programación de tu salida #" + reservaId + " - Horse Reserved";
-        String htmlBody = buildProgramacionEmailBody(clienteNombre, reservaId, rutaNombre, rutaDescripcion,
-                fecha, horaInicio, horaFin, duracionMinutos, guiasNombres, caballosNombres);
+        String htmlBody = buildProgramacionEmailBody("Programación de tu salida", clienteNombre, reservaId,
+                rutaNombre, rutaDescripcion, fecha, horaInicio, horaFin, duracionMinutos,
+                guiasNombres, caballosNombres);
+        sendHtml(toEmail, subject, htmlBody, "programación de salida");
+    }
+
+    @Async
+    public void sendProgramacionActualizadaEmail(
+            String toEmail, String clienteNombre, Long reservaId,
+            String rutaNombre, String rutaDescripcion,
+            LocalDate fecha, LocalTime horaInicio, LocalTime horaFin, int duracionMinutos,
+            List<String> guiasNombres, List<String> caballosNombres) {
+        String subject = "Programación actualizada de tu salida #" + reservaId + " - Horse Reserved";
+        String htmlBody = buildProgramacionEmailBody("Programación actualizada de tu salida", clienteNombre,
+                reservaId, rutaNombre, rutaDescripcion, fecha, horaInicio, horaFin, duracionMinutos,
+                guiasNombres, caballosNombres);
+        sendHtml(toEmail, subject, htmlBody, "programación actualizada de salida");
+    }
+
+    private void sendHtml(String toEmail, String subject, String htmlBody, String tipo) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -106,9 +127,9 @@ public class EmailService {
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
             mailSender.send(message);
-            log.info("Correo de programación de salida enviado a: {}", toEmail);
+            log.info("Correo de {} enviado a: {}", tipo, toEmail);
         } catch (MessagingException | MailException e) {
-            log.error("Error al enviar correo de programación de salida a {}: {}", toEmail, e.getMessage());
+            log.error("Error al enviar correo de {} a {}: {}", tipo, toEmail, e.getMessage());
         }
     }
 
@@ -159,8 +180,8 @@ public class EmailService {
                 """.formatted(primerNombre, resetLink, resetLink, resetLink);
     }
 
-    private String buildConfirmacionEmailBody(
-            String clienteNombre, Long reservaId, String rutaNombre,
+    private String buildResumenEmailBody(
+            String encabezado, String clienteNombre, Long reservaId, String rutaNombre,
             LocalDate fecha, LocalTime horaInicio, LocalTime horaFin,
             int cantPersonas, BigDecimal precioUnitario, BigDecimal precioTotal,
             List<String> participantesNombres) {
@@ -177,16 +198,16 @@ public class EmailService {
         return """
                 <!DOCTYPE html>
                 <html lang="es">
-                <head><meta charset="UTF-8"><title>Reserva confirmada</title></head>
+                <head><meta charset="UTF-8"><title>Reserva - Horse Reserved</title></head>
                 <body style="font-family:Arial,sans-serif;background-color:#f4f4f4;margin:0;padding:20px;">
                   <div style="max-width:600px;margin:auto;">
                     <div style="background-color:#2c3e50;padding:24px;border-radius:8px 8px 0 0;text-align:center;">
                       <h1 style="color:#ffffff;margin:0;font-size:22px;letter-spacing:1px;">Horse Reserved</h1>
                     </div>
                     <div style="background-color:#ffffff;padding:40px;border-radius:0 0 8px 8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-                      <h2 style="color:#2c3e50;margin-top:0;">¡Tu reserva está confirmada!</h2>
+                      <h2 style="color:#2c3e50;margin-top:0;">%s</h2>
                       <p style="color:#555;font-size:16px;">
-                        Hola, <strong>%s</strong>. Tu reserva <strong>#%d</strong> ha sido registrada exitosamente.
+                        Hola, <strong>%s</strong>. Los detalles de tu reserva <strong>#%d</strong> son los siguientes.
                       </p>
                       <table style="width:100%%;border-collapse:collapse;margin:24px 0;font-size:15px;">
                         <tr style="background-color:#f8f9fa;">
@@ -230,6 +251,7 @@ public class EmailService {
                 </body>
                 </html>
                 """.formatted(
+                encabezado,
                 clienteNombre, reservaId,
                 rutaNombre,
                 fecha.format(fechaFmt),
@@ -242,7 +264,8 @@ public class EmailService {
     }
 
     private String buildProgramacionEmailBody(
-            String clienteNombre, Long reservaId, String rutaNombre, String rutaDescripcion,
+            String encabezado, String clienteNombre, Long reservaId,
+            String rutaNombre, String rutaDescripcion,
             LocalDate fecha, LocalTime horaInicio, LocalTime horaFin, int duracionMinutos,
             List<String> guiasNombres, List<String> caballosNombres) {
 
@@ -271,14 +294,14 @@ public class EmailService {
         return """
                 <!DOCTYPE html>
                 <html lang="es">
-                <head><meta charset="UTF-8"><title>Programación de tu salida</title></head>
+                <head><meta charset="UTF-8"><title>Salida - Horse Reserved</title></head>
                 <body style="font-family:Arial,sans-serif;background-color:#f4f4f4;margin:0;padding:20px;">
                   <div style="max-width:600px;margin:auto;">
                     <div style="background-color:#2c3e50;padding:24px;border-radius:8px 8px 0 0;text-align:center;">
                       <h1 style="color:#ffffff;margin:0;font-size:22px;letter-spacing:1px;">Horse Reserved</h1>
                     </div>
                     <div style="background-color:#ffffff;padding:40px;border-radius:0 0 8px 8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-                      <h2 style="color:#2c3e50;margin-top:0;">Programación de tu salida</h2>
+                      <h2 style="color:#2c3e50;margin-top:0;">%s</h2>
                       <p style="color:#555;font-size:16px;">
                         Hola, <strong>%s</strong>. Aquí están los detalles de tu salida para la reserva <strong>#%d</strong>.
                       </p>
@@ -332,6 +355,7 @@ public class EmailService {
                 </body>
                 </html>
                 """.formatted(
+                encabezado,
                 clienteNombre, reservaId,
                 descripcionHtml,
                 rutaNombre,

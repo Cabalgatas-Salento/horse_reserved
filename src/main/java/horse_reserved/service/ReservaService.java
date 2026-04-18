@@ -240,7 +240,29 @@ public class ReservaService {
         reserva.setPrecioTotal(precioUnitario.multiply(BigDecimal.valueOf(request.getCantPersonas())));
         log.info("Reserva actualizada — reservaId={}", reservaId);
 
-        return reservaMapper.toResponse(reservaRepository.save(reserva));
+        Reserva updated = reservaRepository.save(reserva);
+
+        if (updated.getCliente() != null) {
+            Ruta ruta = nuevaSalida.getRuta();
+            List<String> guiasNombres = nuevaSalida.getGuias().stream().map(Guia::getNombre).toList();
+            List<String> caballosNombres = nuevaSalida.getCaballos().stream().map(Caballo::getNombre).toList();
+            List<String> participantesNombres = updated.getParticipantes().stream()
+                    .map(p -> p.getPrimerNombre() + " " + p.getPrimerApellido()).toList();
+
+            emailService.sendReservaActualizacionEmail(
+                    updated.getCliente().getEmail(), updated.getCliente().getPrimerNombre(), updated.getId(),
+                    ruta.getNombre(), nuevaSalida.getFechaProgramada(),
+                    nuevaSalida.getTiempoInicio(), nuevaSalida.getTiempoFin(),
+                    updated.getCantPersonas(), updated.getPrecioUnitario(), updated.getPrecioTotal(),
+                    participantesNombres);
+            emailService.sendProgramacionActualizadaEmail(
+                    updated.getCliente().getEmail(), updated.getCliente().getPrimerNombre(), updated.getId(),
+                    ruta.getNombre(), ruta.getDescripcion(),
+                    nuevaSalida.getFechaProgramada(), nuevaSalida.getTiempoInicio(), nuevaSalida.getTiempoFin(),
+                    ruta.getDuracionMinutos(), guiasNombres, caballosNombres);
+        }
+
+        return reservaMapper.toResponse(updated);
     }
 
     @Transactional(readOnly = true)
