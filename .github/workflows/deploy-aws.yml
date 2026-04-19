@@ -1,0 +1,93 @@
+name: Deploy — ECR + App Runner
+
+on:
+  push:
+    branches: [ master ]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: horse-reserved
+  APP_RUNNER_ARN: arn:aws:apprunner:us-east-1:950876115395:service/horse-reserved/d5633e78424a4a27b196ce87dfac0755
+
+jobs:
+  deploy:
+    name: Build JAR → Push ECR → Deploy App Runner
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Permisos gradlew
+        run: chmod +x gradlew
+
+      - name: Build JAR (sin tests — los corre ci-sonarcloud.yml en paralelo)
+        run: ./gradlew bootJar --no-daemon -x test
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login a Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build y Push imagen Docker a ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY
+          docker build \
+            -t $IMAGE_URI:latest \
+            -t $IMAGE_URI:$GITHUB_SHA \
+            .
+          docker push $IMAGE_URI:latest
+          docker push $IMAGE_URI:$GITHUB_SHA
+
+      - name: Trigger App Runner Deployment
+        run: |
+          OPERATION_ID=$(aws apprunner start-deployment \
+            --service-arn ${{ env.APP_RUNNER_ARN }} \
+            --query 'OperationId' \
+            --output text)
+          echo "Deployment iniciado. OperationId: $OPERATION_ID"
+
+      - name: Esperar completion (timeout 15 min)
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(aws apprunner describe-service \
+              --service-arn ${{ env.APP_RUNNER_ARN }} \
+              --query 'Service.Status' \
+              --output text)
+            echo "Intento $i/30 — Status: $STATUS"
+            if [ "$STATUS" = "RUNNING" ]; then
+              echo "Deployment exitoso."
+              exit 0
+            fi
+            if [ "$STATUS" = "CREATE_FAILED" ]; then
+              echo "ERROR: Deployment falló."
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "TIMEOUT: 15 minutos sin alcanzar RUNNING."
+          exit 1
