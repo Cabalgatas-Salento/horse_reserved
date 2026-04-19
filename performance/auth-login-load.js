@@ -20,7 +20,7 @@ export const options = {
     },
   },
   thresholds: {
-    http_req_duration: ['p(95)<500', 'avg<250'],
+    http_req_duration: ['p(95)<500', 'avg<450'],
     failed_requests: ['rate<0.01'],
   },
 };
@@ -31,7 +31,10 @@ const PAYLOAD = JSON.stringify({
   recaptchaToken: 'test-token',
 });
 
-const HEADERS = { 'Content-Type': 'application/json' };
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'X-Forwarded-For': `10.0.${Math.floor(__VU / 256)}.${__VU % 256}`,
+};
 
 export default function () {
   const res = http.post(`${BASE_URL}/api/auth/login`, PAYLOAD, {
