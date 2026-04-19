@@ -62,6 +62,9 @@ dependencies {
     // Email
     implementation 'org.springframework.boot:spring-boot-starter-mail'
 
+    // MercadoPago SDK
+    implementation 'com.mercadopago:sdk-java:2.1.29'
+
 }
 
 jacoco {

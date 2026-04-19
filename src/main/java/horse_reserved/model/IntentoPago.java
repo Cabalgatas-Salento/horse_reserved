@@ -60,6 +60,15 @@ public class IntentoPago {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "mp_preference_id", length = 120)
+    private String mpPreferenceId;
+
+    @Column(name = "mp_payment_id", length = 80)
+    private String mpPaymentId;
+
+    @Column(name = "mp_payment_status", length = 30)
+    private String mpPaymentStatus;
+
     @OneToMany(mappedBy = "intentoPago", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Transaccion> transacciones;
 

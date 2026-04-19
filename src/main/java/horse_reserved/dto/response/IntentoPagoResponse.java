@@ -21,7 +21,10 @@ public record IntentoPagoResponse(
         Long pagadoPorUsuarioId,
         Long pagadoPorOperadorId,
         String referenciaSimulada,
-        LocalDateTime fechaIntento
+        LocalDateTime fechaIntento,
+        String mpPreferenceId,
+        String mpPaymentId,
+        String mpPaymentStatus
 ) {
     public static IntentoPagoResponse from(IntentoPago i) {
         return new IntentoPagoResponse(
@@ -34,7 +37,10 @@ public record IntentoPagoResponse(
                 i.getPagadoPorUsuario() != null ? i.getPagadoPorUsuario().getId() : null,
                 i.getPagadoPorOperador() != null ? i.getPagadoPorOperador().getId() : null,
                 i.getReferenciaSimulada(),
-                i.getFechaIntento()
+                i.getFechaIntento(),
+                i.getMpPreferenceId(),
+                i.getMpPaymentId(),
+                i.getMpPaymentStatus()
         );
     }
 }

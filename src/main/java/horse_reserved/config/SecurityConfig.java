@@ -67,6 +67,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/recursos/**").hasAuthority("ADMINISTRADOR")
                         .requestMatchers("/api/pagos/metricas").hasAuthority("ADMINISTRADOR")
 
+                        // MercadoPago: webhook público (MP no envía JWT), resto autenticado
+                        .requestMatchers("/api/pagos/mp/webhook").permitAll()
+                        .requestMatchers("/api/pagos/mp/**").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
+
                         // Cualquier otra petición requiere autenticación
                         .anyRequest().authenticated()
                 )
