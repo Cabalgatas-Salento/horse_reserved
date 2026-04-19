@@ -6,6 +6,7 @@ import horse_reserved.model.chatbot.FaqKnowledgeBase;
 import horse_reserved.service.chatbot.FaqKnowledgeBaseProvider;
 import horse_reserved.service.chatbot.IntentMatcher;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -31,6 +32,7 @@ public class ChatbotService {
      * Procesa la pregunta del usuario y retorna la mejor respuesta posible.
      * Aplica validación de threshold y fallback si es necesario.
      */
+    @Cacheable(value = "chatbot-faq", key = "#question")
     public ChatbotAnswerResponse answer(String question) {
         log.debug("Consulta chatbot recibida — longitud={} chars", question != null ? question.length() : 0);
 

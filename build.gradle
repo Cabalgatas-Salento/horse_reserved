@@ -45,6 +45,9 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testImplementation 'com.h2database:h2'
 
+    // Cache
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+
     // Rate Limiting
     implementation 'com.bucket4j:bucket4j-core:8.10.1'
 	implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
