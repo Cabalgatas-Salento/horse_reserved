@@ -37,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -95,7 +96,7 @@ public class PagoMercadoPagoService {
 
         intento = intentoRepo.save(intento);
 
-        Preference preference = crearPreferenciaEnMp(reserva, usuario, intento.getId());
+        Preference preference = crearPreferenciaEnMp(reserva, intento.getId());
 
         intento.setMpPreferenceId(preference.getId());
         intentoRepo.save(intento);
@@ -171,9 +172,12 @@ public class PagoMercadoPagoService {
 
     // ── Privados ──────────────────────────────────────────────────────────────
 
-    private Preference crearPreferenciaEnMp(Reserva reserva, Usuario usuario, Long intentoId) {
+    private Preference crearPreferenciaEnMp(Reserva reserva, Long intentoId) {
         try {
-            String nombreRuta = reserva.getSalida().getRuta().getNombre();
+            String nombreRuta = Optional.ofNullable(reserva.getSalida())
+                    .map(s -> s.getRuta())
+                    .map(r -> r.getNombre())
+                    .orElse("sin nombre");
 
             // COP no acepta decimales en unit_price
             var precioSinDecimales = reserva.getPrecioTotal().setScale(0, RoundingMode.HALF_UP);
@@ -198,10 +202,9 @@ public class PagoMercadoPagoService {
                     successUrl, failureUrl, pendingUrl);
 
             PreferencePayerRequest payer = PreferencePayerRequest.builder()
-                    .email(usuario.getEmail())
+                    .email(reserva.getCliente().getEmail())
                     .build();
 
-            // autoReturn requiere HTTPS; en desarrollo se omite (el usuario hace clic en "Volver al sitio")
             PreferenceRequest.PreferenceRequestBuilder requestBuilder = PreferenceRequest.builder()
                     .items(List.of(item))
                     .backUrls(backUrls)
@@ -218,6 +221,12 @@ public class PagoMercadoPagoService {
 
             PreferenceRequest preferenceRequest = requestBuilder.build();
 
+            log.debug("Enviando preferencia a MP | items={} backUrls.success={} externalRef={} notifUrl={}",
+                    preferenceRequest.getItems().size(),
+                    preferenceRequest.getBackUrls().getSuccess(),
+                    preferenceRequest.getExternalReference(),
+                    notificationUrl.isBlank() ? "(no configurada)" : notificationUrl);
+
             Preference preference = new PreferenceClient().create(preferenceRequest);
             log.info("Preferencia MP creada exitosamente | preferenceId={} initPoint={}", 
                     preference.getId(), preference.getInitPoint());
@@ -225,9 +234,12 @@ public class PagoMercadoPagoService {
             return preference;
 
         } catch (MPApiException e) {
-            String body = e.getApiResponse() != null ? e.getApiResponse().getContent() : "sin body";
-            log.error("Error API MP | status={} body={}", e.getStatusCode(), body);
-            throw new RuntimeException("Error MP [" + e.getStatusCode() + "]: " + body, e);
+            String statusCode = String.valueOf(e.getStatusCode());
+            String body = (e.getApiResponse() != null && e.getApiResponse().getContent() != null)
+                    ? e.getApiResponse().getContent()
+                    : "(sin body)";
+            log.error("Error API MP | status={} body={} sdkMsg={}", statusCode, body, e.getMessage());
+            throw new RuntimeException("Error MP [" + statusCode + "]: " + (body.isBlank() ? e.getMessage() : body), e);
         } catch (MPException e) {
             log.error("Error SDK MP | mensaje={}", e.getMessage());
             throw new RuntimeException("Error de comunicación con MercadoPago: " + e.getMessage(), e);

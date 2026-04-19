@@ -17,6 +17,7 @@ public class MercadoPagoConfiguration {
     @PostConstruct
     public void init() {
         MercadoPagoConfig.setAccessToken(accessToken);
-        log.info("MercadoPago SDK inicializado");
+        log.info("MercadoPago SDK inicializado | token-prefix={}",
+                accessToken != null && accessToken.length() > 10 ? accessToken.substring(0, 10) + "..." : "(vacío)");
     }
 }
