@@ -1,5 +1,6 @@
 package horse_reserved.service;
 
+import com.mercadopago.client.payment.PaymentClient;
 import com.mercadopago.client.preference.PreferenceBackUrlsRequest;
 import com.mercadopago.client.preference.PreferenceClient;
 import com.mercadopago.client.preference.PreferenceItemRequest;
@@ -7,6 +8,7 @@ import com.mercadopago.client.preference.PreferencePayerRequest;
 import com.mercadopago.client.preference.PreferenceRequest;
 import com.mercadopago.exceptions.MPApiException;
 import com.mercadopago.exceptions.MPException;
+import com.mercadopago.resources.payment.Payment;
 import com.mercadopago.resources.preference.Preference;
 import horse_reserved.dto.request.CrearPreferenciaMpRequest;
 import horse_reserved.dto.response.IntentoPagoResponse;
@@ -112,36 +114,53 @@ public class PagoMercadoPagoService {
     }
 
     @Transactional
-    public void procesarWebhook(String paymentId, String status) {
-        log.info("Webhook MP | paymentId={} status={}", paymentId, status);
+    public void procesarWebhook(String paymentId) {
+        log.info("Webhook MP | paymentId={}", paymentId);
+        try {
+            Payment payment = new PaymentClient().get(Long.parseLong(paymentId));
+            String realStatus = payment.getStatus();
+            String externalRef = payment.getExternalReference();
+            log.info("Pago MP consultado | paymentId={} status={} externalRef={}", paymentId, realStatus, externalRef);
 
-        intentoRepo.findByMpPaymentId(paymentId).ifPresentOrElse(intento -> {
-            intento.setMpPaymentStatus(status);
-
-            switch (status) {
-                case "approved" -> {
-                    intento.setEstado(PagoEstado.REALIZADO);
-                    Transaccion tx = Transaccion.builder()
-                            .intentoPago(intento)
-                            .tipoMovimiento(TipoMovimientoTransaccion.PAGO)
-                            .estado(PagoEstado.REALIZADO)
-                            .monto(intento.getMonto())
-                            .moneda("COP")
-                            .detalle("Pago MP aprobado | paymentId=" + paymentId)
-                            .fechaTransaccion(LocalDateTime.now())
-                            .build();
-                    transaccionRepo.save(tx);
-                    log.info("Pago MP aprobado | intentoId={}", intento.getId());
-                }
-                case "rejected" -> {
-                    intento.setEstado(PagoEstado.CANCELADO);
-                    log.info("Pago MP rechazado | intentoId={}", intento.getId());
-                }
-                default -> log.info("Estado MP intermedio | intentoId={} status={}", intento.getId(), status);
+            Long reservaId = Long.parseLong(externalRef);
+            Optional<IntentoPago> opt = intentoRepo.findByMpPaymentId(paymentId);
+            if (opt.isEmpty()) {
+                opt = intentoRepo.findByReservaIdAndEstado(reservaId, PagoEstado.PENDIENTE);
             }
 
-            intentoRepo.save(intento);
-        }, () -> log.warn("Webhook MP sin intento asociado | paymentId={}", paymentId));
+            opt.ifPresentOrElse(intento -> {
+                if (intento.getMpPaymentId() == null) {
+                    intento.setMpPaymentId(paymentId);
+                }
+                intento.setMpPaymentStatus(realStatus);
+
+                switch (realStatus) {
+                    case "approved" -> {
+                        intento.setEstado(PagoEstado.REALIZADO);
+                        Transaccion tx = Transaccion.builder()
+                                .intentoPago(intento)
+                                .tipoMovimiento(TipoMovimientoTransaccion.PAGO)
+                                .estado(PagoEstado.REALIZADO)
+                                .monto(intento.getMonto())
+                                .moneda("COP")
+                                .detalle("Pago MP aprobado | paymentId=" + paymentId)
+                                .fechaTransaccion(LocalDateTime.now())
+                                .build();
+                        transaccionRepo.save(tx);
+                        log.info("Pago MP aprobado | intentoId={}", intento.getId());
+                    }
+                    case "rejected" -> {
+                        intento.setEstado(PagoEstado.CANCELADO);
+                        log.info("Pago MP rechazado | intentoId={}", intento.getId());
+                    }
+                    default -> log.info("Estado MP intermedio | status={}", realStatus);
+                }
+                intentoRepo.save(intento);
+            }, () -> log.warn("Webhook MP sin intento asociado | paymentId={} reservaId={}", paymentId, reservaId));
+
+        } catch (Exception e) {
+            log.error("Error procesando webhook MP | paymentId={} error={}", paymentId, e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)
@@ -208,6 +227,7 @@ public class PagoMercadoPagoService {
             PreferenceRequest.PreferenceRequestBuilder requestBuilder = PreferenceRequest.builder()
                     .items(List.of(item))
                     .backUrls(backUrls)
+                    .autoReturn("approved")
                     .payer(payer)
                     .externalReference(String.valueOf(reserva.getId()))
                     .statementDescriptor("Horse Reserved")

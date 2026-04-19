@@ -12,8 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 @Slf4j
 @RestController
 @RequestMapping("/api/pagos/mp")
@@ -33,14 +31,12 @@ public class MercadoPagoController {
     @PostMapping("/webhook")
     public ResponseEntity<Void> webhook(
             @RequestParam(value = "type", required = false) String type,
-            @RequestParam(value = "id", required = false) String id,
-            @RequestBody(required = false) Map<String, Object> body) {
+            @RequestParam(value = "id", required = false) String id) {
 
         log.info("Webhook MP recibido | type={} id={}", type, id);
 
         if ("payment".equals(type) && id != null) {
-            String status = extraerStatus(body);
-            mpService.procesarWebhook(id, status);
+            mpService.procesarWebhook(id);
         }
 
         return ResponseEntity.ok().build();
@@ -59,19 +55,5 @@ public class MercadoPagoController {
             @RequestParam String mpPaymentId) {
         mpService.asociarPaymentId(intentoId, mpPaymentId);
         return ResponseEntity.ok().build();
-    }
-
-    private String extraerStatus(Map<String, Object> body) {
-        if (body == null) return "pending";
-        try {
-            Object data = body.get("data");
-            if (data instanceof Map<?, ?> dataMap) {
-                Object status = dataMap.get("status");
-                if (status != null) return status.toString();
-            }
-        } catch (Exception e) {
-            log.warn("No se pudo extraer status del body del webhook", e);
-        }
-        return "pending";
     }
 }
