@@ -142,11 +142,9 @@ class GuiaControllerTest {
     }
 
     @Test
-    void cambiarEstado_sinParam_retorna500() throws Exception {
-        // GlobalExceptionHandler no tiene handler específico para MissingServletRequestParameterException
-        // cae en el handler genérico (@ExceptionHandler(Exception.class)) → 500
+    void cambiarEstado_sinParam_retorna400() throws Exception {
         mockMvc.perform(patch("/api/guias/1/estado"))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isBadRequest());
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

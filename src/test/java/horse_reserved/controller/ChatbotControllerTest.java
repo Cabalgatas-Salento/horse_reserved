@@ -64,11 +64,10 @@ class ChatbotControllerTest {
     }
 
     @Test
-    void ask_sinBody_retorna500() throws Exception {
-        // HttpMessageNotReadableException cae en el handler genérico → 500
+    void ask_sinBody_retorna400() throws Exception {
         mockMvc.perform(post("/api/chatbot/faq/ask")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isBadRequest());
     }
 
     // ── GET /api/chatbot/faq/health ───────────────────────────────────────────

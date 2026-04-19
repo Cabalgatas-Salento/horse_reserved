@@ -157,6 +157,29 @@ class ReservaServiceTest {
     }
 
     @Test
+    void crearReserva_caballosDisponiblesInactivos_lanzaBusinessRule() {
+        Caballo caballoInactivo = Caballo.builder().id(2L).nombre("Fantasma").raza("Andaluz").activo(false).build();
+        Salida salidaConInactivos = Salida.builder()
+                .id(101L).ruta(ruta)
+                .fechaProgramada(LocalDate.now().plusDays(2))
+                .tiempoInicio(LocalTime.of(8, 0))
+                .tiempoFin(LocalTime.of(9, 0))
+                .estado("programado").build();
+        salidaConInactivos.getCaballos().add(caballoInactivo);
+
+        CreateReservaRequest request = requestValido();
+        when(usuarioRepository.findByEmail("cliente@test.com")).thenReturn(Optional.of(cliente));
+        when(salidaRepository.findProgramadaByRutaAndFechaAndHora(any(), any(), any()))
+                .thenReturn(Optional.of(salidaConInactivos));
+        when(reservaRepository.sumPersonasReservadasActivasBySalida(101L)).thenReturn(0L);
+        when(caballoRepository.findDisponibles(any(), any(), any())).thenReturn(List.of());
+
+        assertThatThrownBy(() -> reservaService.crearReserva(request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("caballos");
+    }
+
+    @Test
     void crearReserva_clienteValido_guardaReserva() {
         CreateReservaRequest request = requestValido();
         Reserva saved = reservaConCliente(client -> client);

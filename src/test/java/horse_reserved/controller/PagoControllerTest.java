@@ -147,11 +147,29 @@ class PagoControllerTest {
     }
 
     @Test
-    void metricas_sinParams_retorna500() throws Exception {
-        // GlobalExceptionHandler no tiene handler para MissingServletRequestParameterException
-        // cae en el handler genérico (@ExceptionHandler(Exception.class)) → 500
+    void metricas_sinParams_retorna400() throws Exception {
         mockMvc.perform(get("/api/pagos/metricas"))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isBadRequest());
+    }
+
+    // ── GET /api/pagos/transacciones/{id} ─────────────────────────────────────
+
+    @Test
+    void obtenerTransaccion_encontrada_retorna200() throws Exception {
+        when(pagoService.obtenerTransaccion(1L)).thenReturn(transaccionResponse());
+
+        mockMvc.perform(get("/api/pagos/transacciones/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void obtenerTransaccion_noExiste_retorna404() throws Exception {
+        when(pagoService.obtenerTransaccion(99L))
+                .thenThrow(new ResourceNotFoundException("Transacción no encontrada: 99"));
+
+        mockMvc.perform(get("/api/pagos/transacciones/99"))
+                .andExpect(status().isNotFound());
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
@@ -172,5 +190,14 @@ class PagoControllerTest {
 
     private CrearIntentoPagoRequest crearIntentoPagoRequest() {
         return new CrearIntentoPagoRequest(1L, MetodoPago.EFECTIVO, BigDecimal.valueOf(50_000), 1L, null);
+    }
+
+    private horse_reserved.dto.response.TransaccionResponse transaccionResponse() {
+        return new horse_reserved.dto.response.TransaccionResponse(
+                1L, 1L,
+                horse_reserved.model.TipoMovimientoTransaccion.PAGO,
+                PagoEstado.PENDIENTE,
+                BigDecimal.valueOf(50_000), "COP",
+                "Pago simulado", LocalDateTime.now());
     }
 }

@@ -5,6 +5,7 @@ import horse_reserved.model.Dificultad;
 import horse_reserved.model.Ruta;
 import horse_reserved.repository.RutaRepository;
 import horse_reserved.service.AuditLogService;
+import horse_reserved.service.RutaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ExtendWith(MockitoExtension.class)
 class RutaControllerTest {
 
+    @Mock RutaService rutaService;
     @Mock RutaRepository rutaRepository;
     @Mock AuditLogService auditLogService;
 
@@ -31,7 +33,7 @@ class RutaControllerTest {
 
     @BeforeEach
     void setUp() {
-        RutaController controller = new RutaController(rutaRepository);
+        RutaController controller = new RutaController(rutaService, rutaRepository);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler(auditLogService))
                 .build();
@@ -41,7 +43,7 @@ class RutaControllerTest {
 
     @Test
     void listarActivas_retornaLista() throws Exception {
-        when(rutaRepository.findByActivaTrue()).thenReturn(List.of(rutaActiva()));
+        when(rutaService.findActivas()).thenReturn(List.of(rutaActiva()));
 
         mockMvc.perform(get("/api/rutas/public"))
                 .andExpect(status().isOk())
@@ -51,7 +53,7 @@ class RutaControllerTest {
 
     @Test
     void listarActivas_sinRutas_retornaListaVacia() throws Exception {
-        when(rutaRepository.findByActivaTrue()).thenReturn(List.of());
+        when(rutaService.findActivas()).thenReturn(List.of());
 
         mockMvc.perform(get("/api/rutas/public"))
                 .andExpect(status().isOk())

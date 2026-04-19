@@ -438,7 +438,7 @@ public class ReservaService {
      * @param nuevosCupos
      */
     private void expandirCaballosSiNecesario(Salida salida, long ocupadosBase, int personasAdicionales) {
-        int maximo = salida.getCaballos().size();
+        int maximo = (int) salida.getCaballos().stream().filter(Caballo::isActivo).count();
         int faltantes = (int)(ocupadosBase + personasAdicionales) - maximo;
         if (faltantes <= 0) return;
 
@@ -454,7 +454,7 @@ public class ReservaService {
 
     private void validarCupoDisponible(Salida salida, int nuevosCupos) {
         long ocupados = reservaRepository.sumPersonasReservadasActivasBySalida(salida.getId());
-        int maximo = salida.getCaballos().size();
+        int maximo = (int) salida.getCaballos().stream().filter(Caballo::isActivo).count();
 
         if (maximo == 0) {
             throw new BusinessRuleException("La salida no tiene caballos asignados");

@@ -82,14 +82,12 @@ class ReservaControllerTest {
     }
 
     @Test
-    void obtenerPorId_accessDenied_retorna500() throws Exception {
+    void obtenerPorId_accessDenied_retorna403() throws Exception {
         when(reservaService.obtenerPorId(1L))
                 .thenThrow(new AccessDeniedBusinessException("No tienes permisos"));
 
-        // GlobalExceptionHandler no tiene handler para AccessDeniedBusinessException
-        // cae en el handler genérico → 500
         mockMvc.perform(get("/api/reservaciones/1"))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isForbidden());
     }
 
     // ── POST /api/reservaciones ───────────────────────────────────────────────
