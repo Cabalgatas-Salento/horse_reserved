@@ -224,14 +224,20 @@ public class PagoMercadoPagoService {
                     .email(reserva.getCliente().getEmail())
                     .build();
 
+            // auto_return requiere URL pública con HTTPS — no funciona en localhost
+            boolean esUrlPublica = !successUrl.contains("localhost") && !successUrl.contains("127.0.0.1");
+
             PreferenceRequest.PreferenceRequestBuilder requestBuilder = PreferenceRequest.builder()
                     .items(List.of(item))
                     .backUrls(backUrls)
-                    .autoReturn("approved")
                     .payer(payer)
                     .externalReference(String.valueOf(reserva.getId()))
                     .statementDescriptor("Horse Reserved")
                     .binaryMode(false);
+
+            if (esUrlPublica) {
+                requestBuilder.autoReturn("approved");
+            }
 
             // Solo agregar notification_url si está configurado
             if (notificationUrl != null && !notificationUrl.isBlank()) {
