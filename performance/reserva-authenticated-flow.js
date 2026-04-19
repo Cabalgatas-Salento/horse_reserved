@@ -70,7 +70,7 @@ export default function () {
     JSON.stringify({
       rutaId,
       fecha: fechaStr,
-      horaInicio: '08:00:00',
+      horaInicio: '09:00:00',
       cantPersonas: 1,
       participantes: [
         {
@@ -89,6 +89,9 @@ export default function () {
 
   crearReservaTrend.add(crearRes.timings.duration);
   const reservaOk = check(crearRes, { 'reserva creada 201': (r) => r.status === 201 });
+  if (!reservaOk) {
+    console.error(`[crear_reserva] status=${crearRes.status} body=${crearRes.body}`);
+  }
 
   // GET mis reservas
   const misRes = http.get(`${BASE_URL}/api/reservaciones/mias`, {
