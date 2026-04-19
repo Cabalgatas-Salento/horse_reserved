@@ -1,3 +1,4 @@
+// Requiere backend con perfil test: ./gradlew bootRun --args='--spring.profiles.active=test'
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate } from 'k6/metrics';

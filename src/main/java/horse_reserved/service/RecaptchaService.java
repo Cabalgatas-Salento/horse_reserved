@@ -22,9 +22,13 @@ public class RecaptchaService {
     @Value("${recaptcha.secret-key}")
     private String secretKey;
 
+    @Value("${recaptcha.enabled:true}")
+    private boolean enabled;
+
     private final RestClient restClient = RestClient.create();
 
     public void verify(String token) {
+        if (!enabled) return;
         if (token == null || token.isBlank()) {
             throw new RecaptchaVerificationException("El token de reCAPTCHA es obligatorio");
         }
