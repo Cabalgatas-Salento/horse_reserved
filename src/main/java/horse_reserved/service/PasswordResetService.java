@@ -5,6 +5,10 @@ import horse_reserved.model.PasswordResetToken;
 import horse_reserved.model.Usuario;
 import horse_reserved.repository.PasswordResetTokenRepository;
 import horse_reserved.repository.UsuarioRepository;
+import horse_reserved.model.AuditAccion;
+import horse_reserved.model.AuditCategoria;
+import horse_reserved.util.HttpRequestUtil;
+import horse_reserved.util.LogMaskUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,6 +35,7 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final AuditLogService auditLogService;
 
     /**
      * Procesa la solicitud de restablecimiento de contraseña.
@@ -40,6 +45,7 @@ public class PasswordResetService {
      */
     @Transactional
     public void processForgotPassword(String email) {
+        log.info("Solicitud de reset de contraseña para: {}", LogMaskUtil.maskEmail(email));
         Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(email);
 
         // Salida silenciosa si el email no existe
@@ -77,6 +83,9 @@ public class PasswordResetService {
         );
 
         log.info("Token de restablecimiento generado para usuario id={}", usuario.getId());
+        auditLogService.registrarExito(usuario.getId(), usuario.getEmail(),
+                AuditCategoria.CUENTA, AuditAccion.RESET_PASSWORD_SOLICITADO,
+                null, null, HttpRequestUtil.obtenerIpCliente());
     }
 
     /**
@@ -89,10 +98,14 @@ public class PasswordResetService {
     @Transactional
     public void resetPassword(String token, String nuevaPassword) {
         PasswordResetToken resetToken = tokenRepository.findByToken(token)
-                .orElseThrow(() -> new InvalidTokenException(
-                        "El enlace de restablecimiento no es válido o ha expirado"));
+                .orElseThrow(() -> {
+                    log.warn("Token de reset inválido o no encontrado — ref={}", LogMaskUtil.maskToken(token));
+                    return new InvalidTokenException(
+                            "El enlace de restablecimiento no es válido o ha expirado");
+                });
 
         if (!resetToken.isValid()) {
+            log.warn("Token de reset inválido o expirado — ref={}", LogMaskUtil.maskToken(token));
             throw new InvalidTokenException(
                     "El enlace de restablecimiento no es válido o ha expirado");
         }
@@ -105,6 +118,9 @@ public class PasswordResetService {
         resetToken.setUsed(true);
         tokenRepository.save(resetToken);
 
-        log.info("Contraseña restablecida exitosamente para usuario id={}", usuario.getId());
+        log.info("Contraseña restablecida exitosamente para: {}", LogMaskUtil.maskEmail(usuario.getEmail()));
+        auditLogService.registrarExito(usuario.getId(), usuario.getEmail(),
+                AuditCategoria.CUENTA, AuditAccion.RESET_PASSWORD_COMPLETADO,
+                null, null, HttpRequestUtil.obtenerIpCliente());
     }
 }

@@ -7,7 +7,14 @@ import horse_reserved.dto.response.ReservaResponse;
 import horse_reserved.exception.*;
 import horse_reserved.model.*;
 import horse_reserved.repository.*;
+import horse_reserved.model.AuditAccion;
+import horse_reserved.model.AuditCategoria;
+import horse_reserved.util.HttpRequestUtil;
+import horse_reserved.util.LogMaskUtil;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -18,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 /**
@@ -32,6 +40,11 @@ public class ReservaService {
     private final GuiaRepository guiaRepository;
     private final UsuarioRepository usuarioRepository;
     private final ReservaMapper reservaMapper;
+    private final EmailService emailService;
+    private final AuditLogService auditLogService;
+
+    @PersistenceContext
+    private EntityManager em;
 
     /**
      * Metodo para realizar una reserva nueva
@@ -42,9 +55,14 @@ public class ReservaService {
      */
     @Transactional
     public ReservaResponse crearReserva(CreateReservaRequest request) {
+        log.info("Creando reserva — rutaId={}, fecha={}, hora={}, cantPersonas={}",
+                request.getRutaId(), request.getFecha(), request.getHoraInicio(), request.getCantPersonas());
+
         validarRequestCrear(request);
 
         Usuario autenticado = usuarioAutenticado();
+
+        log.debug("Usuario autenticado: {}", LogMaskUtil.maskEmail(autenticado.getEmail()));
 
         Usuario cliente;
         Usuario operador;
@@ -66,13 +84,17 @@ public class ReservaService {
 
         Salida salida = salidaRepository
                 .findProgramadaByRutaAndFechaAndHora(request.getRutaId(), request.getFecha(), request.getHoraInicio())
-                .orElseGet(() -> crearNuevaSalida(
-                        request.getRutaId(), request.getFecha(), request.getHoraInicio(), request.getCantPersonas()));
+                .orElseGet(() -> {
+                    log.info("No existe salida programada — creando nueva salida para rutaId={}", request.getRutaId());
+                    return crearNuevaSalida(request.getRutaId(), request.getFecha(),
+                            request.getHoraInicio(), request.getCantPersonas());
+                });
 
+        long ocupados = reservaRepository.sumPersonasReservadasActivasBySalida(salida.getId());
+        expandirCaballosSiNecesario(salida, ocupados, request.getCantPersonas());
         validarCupoDisponible(salida, request.getCantPersonas());
 
-        long totalPersonas = reservaRepository.sumPersonasReservadasActivasBySalida(salida.getId())
-                + request.getCantPersonas();
+        long totalPersonas = ocupados + request.getCantPersonas();
         asignarGuiasSalida(salida, totalPersonas);
 
         BigDecimal precioUnitario = salida.getRuta().getPrecio();
@@ -103,6 +125,33 @@ public class ReservaService {
         }
 
         Reserva saved = reservaRepository.save(reserva);
+        log.info("Reserva creada exitosamente — reservaId={}, salidaId={}", saved.getId(), salida.getId());
+        auditLogService.registrarExito(
+                saved.getCliente() != null ? saved.getCliente().getId() : null,
+                saved.getCliente() != null ? saved.getCliente().getEmail() : autenticado.getEmail(),
+                AuditCategoria.RESERVA, AuditAccion.RESERVA_CREADA,
+                "RESERVA", saved.getId(), HttpRequestUtil.obtenerIpCliente());
+
+        if (saved.getCliente() != null) {
+            Ruta ruta = salida.getRuta();
+            List<String> guiasNombres = salida.getGuias().stream().map(Guia::getNombre).toList();
+            List<String> caballosNombres = salida.getCaballos().stream().map(Caballo::getNombre).toList();
+            List<String> participantesNombres = saved.getParticipantes().stream()
+                    .map(p -> p.getPrimerNombre() + " " + p.getPrimerApellido()).toList();
+
+            emailService.sendReservaConfirmacionEmail(
+                    saved.getCliente().getEmail(), saved.getCliente().getPrimerNombre(), saved.getId(),
+                    ruta.getNombre(), salida.getFechaProgramada(),
+                    salida.getTiempoInicio(), salida.getTiempoFin(),
+                    saved.getCantPersonas(), saved.getPrecioUnitario(), saved.getPrecioTotal(),
+                    participantesNombres);
+            emailService.sendProgramacionSalidaEmail(
+                    saved.getCliente().getEmail(), saved.getCliente().getPrimerNombre(), saved.getId(),
+                    ruta.getNombre(), ruta.getDescripcion(),
+                    salida.getFechaProgramada(), salida.getTiempoInicio(), salida.getTiempoFin(),
+                    ruta.getDuracionMinutos(), guiasNombres, caballosNombres);
+        }
+
         return reservaMapper.toResponse(saved);
     }
 
@@ -125,6 +174,7 @@ public class ReservaService {
      */
     @Transactional
     public ReservaResponse actualizarReserva(Long reservaId, UpdateReservaRequest request) {
+        log.info("Actualizando reserva — reservaId={}, cantPersonas={}", reservaId, request.getCantPersonas());
         if (request.getCantPersonas() != request.getParticipantes().size()) {
             throw new BusinessRuleException("cantPersonas debe coincidir con el número de participantes");
         }
@@ -149,21 +199,27 @@ public class ReservaService {
                 || !salidaActual.getFechaProgramada().equals(request.getFecha())
                 || !salidaActual.getTiempoInicio().equals(request.getHoraInicio());
 
+        if (salidaCambia && !request.getFecha().isAfter(LocalDate.now())) {
+            throw new BusinessRuleException("La nueva fecha debe ser al menos 1 día después de hoy");
+        }
+
         Salida nuevaSalida;
         if (salidaCambia) {
             nuevaSalida = salidaRepository
                     .findProgramadaByRutaAndFechaAndHora(request.getRutaId(), request.getFecha(), request.getHoraInicio())
                     .orElseGet(() -> crearNuevaSalida(
                             request.getRutaId(), request.getFecha(), request.getHoraInicio(), request.getCantPersonas()));
+            long ocupadosSalida = reservaRepository.sumPersonasReservadasActivasBySalida(nuevaSalida.getId());
+            expandirCaballosSiNecesario(nuevaSalida, ocupadosSalida, request.getCantPersonas());
             validarCupoDisponible(nuevaSalida, request.getCantPersonas());
-            long total = reservaRepository.sumPersonasReservadasActivasBySalida(nuevaSalida.getId())
-                    + request.getCantPersonas();
+            long total = ocupadosSalida + request.getCantPersonas();
             asignarGuiasSalida(nuevaSalida, total);
         } else {
             nuevaSalida = salidaActual;
             // Desconta la reserva actual para no doble-contarla en la validación de cupo
             long ocupadosNetos = reservaRepository.sumPersonasReservadasActivasBySalida(nuevaSalida.getId())
                     - reserva.getCantPersonas();
+            expandirCaballosSiNecesario(nuevaSalida, ocupadosNetos, request.getCantPersonas());
             int maximo = nuevaSalida.getCaballos().size();
             if (maximo == 0) {
                 throw new BusinessRuleException("La salida no tiene caballos asignados");
@@ -176,6 +232,7 @@ public class ReservaService {
         }
 
         reserva.getParticipantes().clear();
+        em.flush(); // forza DELETE de orphans antes de los INSERT para evitar constraint uq_participant_doc
         for (ParticipanteRequest pReq : request.getParticipantes()) {
             Participante p = Participante.builder()
                     .primerNombre(pReq.getPrimerNombre().trim())
@@ -194,8 +251,36 @@ public class ReservaService {
         BigDecimal precioUnitario = nuevaSalida.getRuta().getPrecio();
         reserva.setPrecioUnitario(precioUnitario);
         reserva.setPrecioTotal(precioUnitario.multiply(BigDecimal.valueOf(request.getCantPersonas())));
+        log.info("Reserva actualizada — reservaId={}", reservaId);
+        auditLogService.registrarExito(
+                reserva.getCliente() != null ? reserva.getCliente().getId() : null,
+                reserva.getCliente() != null ? reserva.getCliente().getEmail() : actual.getEmail(),
+                AuditCategoria.RESERVA, AuditAccion.RESERVA_ACTUALIZADA,
+                "RESERVA", reservaId, HttpRequestUtil.obtenerIpCliente());
 
-        return reservaMapper.toResponse(reservaRepository.save(reserva));
+        Reserva updated = reservaRepository.save(reserva);
+
+        if (updated.getCliente() != null) {
+            Ruta ruta = nuevaSalida.getRuta();
+            List<String> guiasNombres = nuevaSalida.getGuias().stream().map(Guia::getNombre).toList();
+            List<String> caballosNombres = nuevaSalida.getCaballos().stream().map(Caballo::getNombre).toList();
+            List<String> participantesNombres = updated.getParticipantes().stream()
+                    .map(p -> p.getPrimerNombre() + " " + p.getPrimerApellido()).toList();
+
+            emailService.sendReservaActualizacionEmail(
+                    updated.getCliente().getEmail(), updated.getCliente().getPrimerNombre(), updated.getId(),
+                    ruta.getNombre(), nuevaSalida.getFechaProgramada(),
+                    nuevaSalida.getTiempoInicio(), nuevaSalida.getTiempoFin(),
+                    updated.getCantPersonas(), updated.getPrecioUnitario(), updated.getPrecioTotal(),
+                    participantesNombres);
+            emailService.sendProgramacionActualizadaEmail(
+                    updated.getCliente().getEmail(), updated.getCliente().getPrimerNombre(), updated.getId(),
+                    ruta.getNombre(), ruta.getDescripcion(),
+                    nuevaSalida.getFechaProgramada(), nuevaSalida.getTiempoInicio(), nuevaSalida.getTiempoFin(),
+                    ruta.getDuracionMinutos(), guiasNombres, caballosNombres);
+        }
+
+        return reservaMapper.toResponse(updated);
     }
 
     @Transactional(readOnly = true)
@@ -232,6 +317,7 @@ public class ReservaService {
      */
     @Transactional
     public ReservaResponse cancelarReserva(Long reservaId) {
+        log.info("Solicitud de cancelación — reservaId={}", reservaId);
         Usuario actual = usuarioAutenticado();
 
         Reserva reserva = reservaRepository.findDetailedById(reservaId)
@@ -250,7 +336,24 @@ public class ReservaService {
         }
 
         reserva.setEstado("cancelado");
-        return reservaMapper.toResponse(reservaRepository.save(reserva));
+        log.info("Reserva cancelada — reservaId={}", reservaId);
+        auditLogService.registrarExito(
+                reserva.getCliente() != null ? reserva.getCliente().getId() : null,
+                reserva.getCliente() != null ? reserva.getCliente().getEmail() : actual.getEmail(),
+                AuditCategoria.RESERVA, AuditAccion.RESERVA_CANCELADA,
+                "RESERVA", reservaId, HttpRequestUtil.obtenerIpCliente());
+
+        Reserva cancelada = reservaRepository.save(reserva);
+
+        if (cancelada.getCliente() != null) {
+            Salida salida = cancelada.getSalida();
+            emailService.sendReservaCancelacionEmail(
+                    cancelada.getCliente().getEmail(), cancelada.getCliente().getPrimerNombre(), cancelada.getId(),
+                    salida.getRuta().getNombre(), salida.getFechaProgramada(),
+                    salida.getTiempoInicio(), salida.getTiempoFin());
+        }
+
+        return reservaMapper.toResponse(cancelada);
     }
 
     // ===================== VALIDACIONES =====================
@@ -265,6 +368,9 @@ public class ReservaService {
         }
         if (request.getCantPersonas() != request.getParticipantes().size()) {
             throw new BusinessRuleException("cantPersonas debe coincidir con el número de participantes");
+        }
+        if (!request.getFecha().isAfter(LocalDate.now())) {
+            throw new BusinessRuleException("La fecha de reserva debe ser al menos 1 día después de hoy");
         }
     }
 
@@ -331,9 +437,24 @@ public class ReservaService {
      * @param salida
      * @param nuevosCupos
      */
+    private void expandirCaballosSiNecesario(Salida salida, long ocupadosBase, int personasAdicionales) {
+        int maximo = (int) salida.getCaballos().stream().filter(Caballo::isActivo).count();
+        int faltantes = (int)(ocupadosBase + personasAdicionales) - maximo;
+        if (faltantes <= 0) return;
+
+        List<Caballo> disponibles = caballoRepository.findDisponibles(
+                salida.getFechaProgramada(), salida.getTiempoInicio(), salida.getTiempoFin());
+
+        if (disponibles.size() < faltantes) {
+            throw new BusinessRuleException(
+                    "No hay suficientes caballos disponibles. Faltan: " + faltantes + ", disponibles: " + disponibles.size());
+        }
+        disponibles.stream().limit(faltantes).forEach(salida::agregarCaballo);
+    }
+
     private void validarCupoDisponible(Salida salida, int nuevosCupos) {
         long ocupados = reservaRepository.sumPersonasReservadasActivasBySalida(salida.getId());
-        int maximo = salida.getCaballos().size();
+        int maximo = (int) salida.getCaballos().stream().filter(Caballo::isActivo).count();
 
         if (maximo == 0) {
             throw new BusinessRuleException("La salida no tiene caballos asignados");

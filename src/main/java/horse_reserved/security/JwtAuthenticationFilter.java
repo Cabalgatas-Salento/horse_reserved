@@ -1,11 +1,14 @@
 package horse_reserved.security;
 
 import horse_reserved.service.JwtService;
+import horse_reserved.util.LogMaskUtil;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,6 +20,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -38,6 +42,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // Si no hay header o no empieza con "Bearer ", continuar con la cadena de filtros
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.debug("Request sin Bearer token — path={}", request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
         }
@@ -48,6 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             // Extraer el email del token
             userEmail = jwtService.extractUsername(jwt);
+            log.debug("Token procesado para: {}", LogMaskUtil.maskEmail(userEmail));
 
             // Si el email no es nulo y no hay autenticación en el contexto
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -72,11 +78,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     // Establecer la autenticación en el contexto de seguridad
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    log.debug("Autenticación establecida para: {}", LogMaskUtil.maskEmail(userEmail));
                 }
             }
         } catch (Exception e) {
-            // Log del error y continuar sin autenticación
-            logger.error("Error al procesar token JWT: " + e.getMessage());
+            log.warn("Token JWT inválido o expirado — ref={}, causa={}", LogMaskUtil.maskToken(jwt), e.getMessage());
         }
 
         // Continuar con la cadena de filtros

@@ -3,6 +3,7 @@ package horse_reserved.controller;
 import horse_reserved.dto.response.RutaResponse;
 import horse_reserved.model.Ruta;
 import horse_reserved.repository.RutaRepository;
+import horse_reserved.service.RutaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,11 +18,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RutaController {
 
+    private final RutaService rutaService;
     private final RutaRepository rutaRepository;
 
     @GetMapping("/public")
     public ResponseEntity<List<RutaResponse>> listarActivas() {
-        List<RutaResponse> rutas = rutaRepository.findByActivaTrue().stream()
+        List<RutaResponse> rutas = rutaService.findActivas().stream()
                 .map(this::toResponse)
                 .toList();
         return ResponseEntity.ok(rutas);

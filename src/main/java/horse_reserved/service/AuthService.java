@@ -12,12 +12,18 @@ import horse_reserved.model.Usuario;
 import horse_reserved.repository.UsuarioRepository;
 import horse_reserved.dto.response.UserProfileResponse;
 import horse_reserved.dto.request.ChangePasswordRequest;
+import horse_reserved.model.AuditAccion;
+import horse_reserved.model.AuditCategoria;
+import horse_reserved.util.HttpRequestUtil;
+import horse_reserved.util.LogMaskUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +31,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -33,12 +40,17 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final AuditLogService auditLogService;
+
+    @Value("${jwt.expiration}")
+    private Long jwtExpiration;
 
     /**
      * Registra un nuevo cliente en el sistema
      */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        log.info("Intento de registro para: {}", LogMaskUtil.maskEmail(request.getEmail()));
         // Verificar si el email ya existe
         if (usuarioRepository.existsByEmail(request.getEmail())) {
             throw new EmailAlreadyExistsException("El email " + request.getEmail() + " ya está registrado");
@@ -69,11 +81,16 @@ public class AuthService {
 
         String jwtToken = jwtService.generateToken(usuario, extraClaims);
 
+        log.info("Registro exitoso para: {}", LogMaskUtil.maskEmail(request.getEmail()));
+        auditLogService.registrarExito(usuario.getId(), usuario.getEmail(),
+                AuditCategoria.AUTENTICACION, AuditAccion.REGISTRO_EXITOSO,
+                "USUARIO", usuario.getId(), HttpRequestUtil.obtenerIpCliente());
+
         // Retornar respuesta
         return AuthResponse.builder()
                 .token(jwtToken)
                 .type("Bearer")
-                .expiresIn(1800L) // 30 minutos
+                .expiresIn(jwtExpiration / 1000)
                 .userId(usuario.getId())
                 .email(usuario.getEmail())
                 .primerNombre(usuario.getPrimerNombre())
@@ -88,6 +105,7 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         // Intentar autenticar
+        log.info("Intento de login para: {}", LogMaskUtil.maskEmail(request.getEmail()));
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -96,15 +114,23 @@ public class AuthService {
                     )
             );
         } catch (AuthenticationException e) {
+            log.warn("Login fallido para {}: {}", LogMaskUtil.maskEmail(request.getEmail()), e.getMessage());
+            auditLogService.registrarFallo(null, request.getEmail(),
+                    AuditCategoria.AUTENTICACION, AuditAccion.LOGIN_FALLIDO,
+                    "Credenciales inválidas", HttpRequestUtil.obtenerIpCliente());
             throw new InvalidCredentialsException("Email o contraseña incorrectos");
         }
 
         // Buscar usuario
         Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new InvalidCredentialsException("Usuario no encontrado"));
+                .orElseThrow(() -> {
+                    log.warn("Usuario no encontrado tras autenticación: {}", LogMaskUtil.maskEmail(request.getEmail()));
+                    return new InvalidCredentialsException("Usuario no encontrado");
+                });
 
         // Verificar si el usuario está activo
         if (!usuario.getIsActive()) {
+            log.warn("Login rechazado — usuario inactivo: {}", LogMaskUtil.maskEmail(request.getEmail()));
             throw new UserInactiveException("El usuario está inactivo. Contacte al administrador.");
         }
 
@@ -115,11 +141,15 @@ public class AuthService {
 
         String jwtToken = jwtService.generateToken(usuario, extraClaims);
 
+        log.info("Login exitoso para: {}", LogMaskUtil.maskEmail(request.getEmail()));
+        auditLogService.registrarExito(usuario.getId(), usuario.getEmail(),
+                AuditCategoria.AUTENTICACION, AuditAccion.LOGIN_EXITOSO,
+                null, null, HttpRequestUtil.obtenerIpCliente());
         // Retornar respuesta
         return AuthResponse.builder()
                 .token(jwtToken)
                 .type("Bearer")
-                .expiresIn(1800L)
+                .expiresIn(jwtExpiration / 1000)
                 .userId(usuario.getId())
                 .email(usuario.getEmail())
                 .primerNombre(usuario.getPrimerNombre())
@@ -159,6 +189,8 @@ public class AuthService {
      */
     @Transactional
     public void changePassword(ChangePasswordRequest request) {
+        log.info("Solicitud de cambio de contraseña para usuario autenticado");
+
         String email = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();
@@ -188,5 +220,9 @@ public class AuthService {
         usuario.setPasswordHash(passwordEncoder.encode(request.getPasswordNueva()));
         usuario.setPasswordChangedAt(Instant.now());
         usuarioRepository.save(usuario);
+        log.info("Cambio de contraseña completado");
+        auditLogService.registrarExito(usuario.getId(), usuario.getEmail(),
+                AuditCategoria.CUENTA, AuditAccion.CAMBIO_PASSWORD,
+                null, null, HttpRequestUtil.obtenerIpCliente());
     }
 }

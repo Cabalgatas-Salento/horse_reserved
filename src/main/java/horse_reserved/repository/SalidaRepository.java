@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -26,4 +27,11 @@ public interface SalidaRepository extends JpaRepository<Salida, Long> {
     Optional<Salida> findProgramadaByRutaAndFechaAndHora(@Param("rutaId") Long rutaId,
                                                           @Param("fecha") LocalDate fecha,
                                                           @Param("horaInicio") LocalTime horaInicio);
+
+    @Query("SELECT s FROM Salida s WHERE s.estado = 'programado' AND s.fechaProgramada <= :today")
+    List<Salida> findProgramadasHastaHoy(@Param("today") LocalDate today);
+
+    @Modifying
+    @Query("UPDATE Salida s SET s.estado = 'completado' WHERE s.id IN :ids")
+    int completarPorIds(@Param("ids") List<Long> ids);
 }

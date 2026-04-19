@@ -1,0 +1,433 @@
+{
+  "version": "1.0.0",
+  "locale": "es-CO",
+  "fallback": {
+    "message": "No estoy 100% seguro de entender tu pregunta. Puedo ayudarte con registro, inicio de sesión, rutas de cabalgata, reservas y cancelaciones.",
+    "suggestions": ["¿Cómo me registro?", "¿Cómo inicio sesión?", "¿Qué rutas hay disponibles?", "¿Cómo hago una reserva?", "¿Cómo cancelo una reserva?"]
+  },
+  "intents": [
+    {
+      "id": "registro_usuario",
+      "categoria": "auth",
+      "threshold": 0.72,
+      "utterances": [
+        "cómo me registro",
+        "crear cuenta",
+        "abrir cuenta",
+        "quiero registrarme",
+        "no tengo cuenta"
+      ],
+      "keywords": ["registro", "registrar", "cuenta", "crear usuario", "sign up"],
+      "synonyms": {
+        "registrar": ["crear", "abrir", "dar de alta"],
+        "cuenta": ["usuario", "perfil"]
+      },
+      "response": {
+        "text": "Para crear tu cuenta, toca el botón 'Registrarse', completa tus datos personales (nombre, apellido, documento, teléfono), elige una contraseña y acepta la política de datos. ¡En minutos estarás listo para reservar!",
+        "action": {
+          "type": "NAVIGATION",
+          "endpoint": "/auth/register",
+          "method": "GET",
+          "authRequired": false
+        },
+        "authRequired": false,
+        "notes": [
+          "Nombre y apellido son obligatorios.",
+          "Debes aceptar la política de tratamiento de datos para completar el registro."
+        ]
+      }
+    },
+    {
+      "id": "login_usuario",
+      "categoria": "auth",
+      "threshold": 0.72,
+      "utterances": [
+        "cómo inicio sesión",
+        "no puedo iniciar sesión",
+        "hacer login",
+        "entrar a mi cuenta"
+      ],
+      "keywords": ["login", "iniciar sesión", "acceder", "entrar", "autenticar"],
+      "synonyms": {
+        "login": ["iniciar sesión", "autenticar", "entrar"]
+      },
+      "response": {
+        "text": "Para ingresar, toca 'Iniciar sesión', escribe tu correo electrónico y contraseña. También puedes entrar con tu cuenta de Google.",
+        "action": {
+          "type": "NAVIGATION",
+          "endpoint": "/auth/login",
+          "method": "GET",
+          "authRequired": false
+        },
+        "authRequired": false,
+        "notes": [
+          "Si tu correo o contraseña son incorrectos, revisa que no haya espacios extra.",
+          "Si tu cuenta fue desactivada, contáctanos para reactivarla."
+        ]
+      }
+    },
+    {
+      "id": "perfil_actual",
+      "categoria": "auth",
+      "threshold": 0.7,
+      "utterances": [
+        "ver mi perfil",
+        "mis datos",
+        "quién soy",
+        "datos de mi cuenta"
+      ],
+      "keywords": ["perfil", "me", "cuenta", "usuario actual"],
+      "response": {
+        "text": "Puedes ver y editar tu información personal en la sección 'Mi cuenta', disponible en el menú de la aplicación.",
+        "action": {
+          "type": "NAVIGATION",
+          "endpoint": "/tabs/cuenta",
+          "method": "GET",
+          "authRequired": true
+        },
+        "authRequired": true
+      }
+    },
+    {
+      "id": "cambiar_password",
+      "categoria": "auth",
+      "threshold": 0.72,
+      "utterances": [
+        "cambiar contraseña",
+        "actualizar clave",
+        "modificar password"
+      ],
+      "keywords": ["contraseña", "clave", "password", "cambiar"],
+      "synonyms": {
+        "contraseña": ["clave", "password", "pass"]
+      },
+      "response": {
+        "text": "Para cambiar tu contraseña, ve a 'Mi cuenta' → 'Cambiar contraseña'. Necesitarás ingresar tu contraseña actual y luego la nueva.",
+        "action": {
+          "type": "NAVIGATION",
+          "endpoint": "/tabs/cuenta",
+          "method": "GET",
+          "authRequired": true
+        },
+        "authRequired": true
+      }
+    },
+    {
+      "id": "olvide_password",
+      "categoria": "auth",
+      "threshold": 0.72,
+      "utterances": [
+        "olvidé mi contraseña",
+        "recuperar clave",
+        "restablecer password",
+        "no recuerdo mi clave"
+      ],
+      "keywords": ["olvidé", "recuperar", "restablecer", "token", "correo"],
+      "response": {
+        "text": "Sin problema. Toca '¿Olvidaste tu contraseña?' en la pantalla de ingreso, escribe tu correo y te enviaremos un enlace para restablecerla.",
+        "action": {
+          "type": "NAVIGATION",
+          "endpoint": "/auth/forgot-password",
+          "method": "GET",
+          "authRequired": false
+        },
+        "authRequired": false,
+        "notes": [
+          "Revisa también la carpeta de spam si no encuentras el correo."
+        ]
+      }
+    },
+    {
+      "id": "reset_password_token",
+      "categoria": "auth",
+      "threshold": 0.72,
+      "utterances": [
+        "cómo uso el token de recuperación",
+        "token expirado",
+        "restablecer con token",
+        "el enlace de recuperación no funciona"
+      ],
+      "keywords": ["token", "reset", "expirado", "inválido", "nueva contraseña", "enlace"],
+      "response": {
+        "text": "El enlace de recuperación es válido por un tiempo limitado. Si ya expiró, solicita uno nuevo desde '¿Olvidaste tu contraseña?' en la pantalla de ingreso.",
+        "authRequired": false,
+        "notes": [
+          "Cada enlace solo puede usarse una vez.",
+          "Si el enlace dice 'inválido o expirado', debes solicitar uno nuevo."
+        ]
+      }
+    },
+    {
+      "id": "login_google",
+      "categoria": "auth_oauth2",
+      "threshold": 0.7,
+      "utterances": [
+        "entrar con google",
+        "login con google",
+        "oauth google",
+        "usar mi cuenta de google"
+      ],
+      "keywords": ["google", "oauth", "oauth2", "social login"],
+      "response": {
+        "text": "Puedes ingresar fácilmente con tu cuenta de Google. En la pantalla de inicio de sesión, toca el botón 'Continuar con Google' y sigue los pasos.",
+        "action": {
+          "type": "NAVIGATION",
+          "endpoint": "/auth/login",
+          "method": "GET",
+          "authRequired": false
+        },
+        "authRequired": false
+      }
+    },
+    {
+      "id": "listar_rutas_publicas",
+      "categoria": "rutas",
+      "threshold": 0.68,
+      "utterances": [
+        "qué rutas hay",
+        "listar rutas",
+        "ver rutas disponibles",
+        "catálogo de rutas",
+        "qué cabalgatas ofrecen",
+        "cuáles son los recorridos"
+      ],
+      "keywords": ["rutas", "disponibles", "catálogo", "cabalgata", "recorridos"],
+      "response": {
+        "text": "Tenemos varias rutas de cabalgata disponibles con diferentes niveles de dificultad y duración. Encuéntralas en la sección 'Rutas' de la aplicación.",
+        "action": {
+          "type": "NAVIGATION",
+          "endpoint": "/tabs/inicio",
+          "method": "GET",
+          "authRequired": false
+        },
+        "authRequired": false
+      }
+    },
+    {
+      "id": "detalle_ruta",
+      "categoria": "rutas",
+      "threshold": 0.68,
+      "utterances": [
+        "detalle de ruta",
+        "ver ruta por id",
+        "información de una ruta",
+        "cuánto dura la ruta",
+        "dificultad de la ruta"
+      ],
+      "keywords": ["ruta", "detalle", "id", "precio", "dificultad", "duración"],
+      "response": {
+        "text": "Toca cualquier ruta en el catálogo para ver todos sus detalles: duración, nivel de dificultad, precio por persona y descripción del recorrido.",
+        "authRequired": false
+      }
+    },
+    {
+      "id": "crear_reserva",
+      "categoria": "reservaciones",
+      "threshold": 0.74,
+      "utterances": [
+        "cómo reservo",
+        "hacer una reservación",
+        "crear reserva",
+        "agendar cabalgata",
+        "quiero reservar",
+        "apartar una cabalgata"
+      ],
+      "keywords": ["reserva", "reservación", "agendar", "ruta", "fecha", "hora", "participantes"],
+      "response": {
+        "text": "Para reservar: elige la ruta que quieres, selecciona la fecha, hora y número de participantes, luego completa los datos de cada persona y confirma. ¡Así de fácil!",
+        "action": {
+          "type": "NAVIGATION",
+          "endpoint": "/tabs/reservas/nueva",
+          "method": "GET",
+          "authRequired": true
+        },
+        "authRequired": true,
+        "notes": [
+          "Necesitas estar registrado e iniciar sesión para hacer una reserva.",
+          "El número de personas debe coincidir con los datos que ingreses."
+        ]
+      }
+    },
+    {
+      "id": "mis_reservas",
+      "categoria": "reservaciones",
+      "threshold": 0.7,
+      "utterances": [
+        "ver mis reservas",
+        "reservas mías",
+        "historial de reservas",
+        "mis cabalgatas agendadas"
+      ],
+      "keywords": ["mis reservas", "mias", "historial", "reservaciones"],
+      "response": {
+        "text": "Todas tus reservas activas e historial están en la sección 'Mis reservas'. Allí puedes ver el estado, fecha y detalles de cada una.",
+        "action": {
+          "type": "NAVIGATION",
+          "endpoint": "/tabs/reservas",
+          "method": "GET",
+          "authRequired": true
+        },
+        "authRequired": true
+      }
+    },
+    {
+      "id": "actualizar_reserva",
+      "categoria": "reservaciones",
+      "threshold": 0.74,
+      "utterances": [
+        "modificar reserva",
+        "cambiar fecha de reserva",
+        "actualizar participantes",
+        "cambiar mi reserva"
+      ],
+      "keywords": ["actualizar", "modificar", "cambiar fecha", "participantes", "ruta"],
+      "response": {
+        "text": "Puedes modificar tu reserva siempre que no haya sido completada ni cancelada. Ve a 'Mis reservas', selecciona la que deseas cambiar y toca 'Editar'.",
+        "authRequired": true,
+        "notes": [
+          "Solo puedes modificar reservas que aún no hayan sido completadas o canceladas.",
+          "El número de personas debe coincidir con los datos que ingreses."
+        ]
+      }
+    },
+    {
+      "id": "cancelar_reserva",
+      "categoria": "reservaciones",
+      "threshold": 0.74,
+      "utterances": [
+        "cancelar reserva",
+        "anular reservación",
+        "dar de baja reserva",
+        "quiero cancelar mi reserva"
+      ],
+      "keywords": ["cancelar", "anular", "reserva", "reservación"],
+      "response": {
+        "text": "Para cancelar, ve a 'Mis reservas', selecciona la reserva y toca 'Cancelar'. Ten en cuenta nuestra política de reembolsos antes de confirmar.",
+        "authRequired": true,
+        "notes": [
+          "No es posible cancelar una reserva que ya fue completada.",
+          "Consulta la política de reembolsos para saber si aplica devolución."
+        ]
+      }
+    },
+    {
+      "id": "errores_comunes",
+      "categoria": "soporte",
+      "threshold": 0.66,
+      "utterances": [
+        "me aparece un error",
+        "no me deja entrar",
+        "la app no funciona",
+        "error al iniciar sesión",
+        "no puedo hacer la reserva"
+      ],
+      "keywords": ["error", "problema", "falla", "no funciona", "no puedo"],
+      "response": {
+        "text": "Si tienes un problema, prueba estos pasos: 1) Verifica tu conexión a internet. 2) Cierra y vuelve a abrir la app. 3) Si el error persiste al iniciar sesión, usa '¿Olvidaste tu contraseña?' para recuperar el acceso. 4) Contáctanos si el problema continúa.",
+        "authRequired": false
+      }
+    },
+    {
+      "id": "precios_tarifas",
+      "categoria": "informacion",
+      "threshold": 0.66,
+      "utterances": [
+        "cuánto cuesta la cabalgata",
+        "cuál es el precio",
+        "tarifas de las rutas",
+        "cuánto vale reservar",
+        "precio por persona"
+      ],
+      "keywords": ["precio", "costo", "tarifa", "valor", "cuánto", "cobran"],
+      "response": {
+        "text": "El precio varía según la ruta. Puedes ver el costo exacto por persona en el detalle de cada ruta antes de reservar. No hay cargos ocultos.",
+        "authRequired": false
+      }
+    },
+    {
+      "id": "horarios_disponibilidad",
+      "categoria": "informacion",
+      "threshold": 0.66,
+      "utterances": [
+        "a qué horas salen",
+        "cuáles son los horarios",
+        "qué días hay cabalgatas",
+        "cuándo puedo reservar",
+        "disponibilidad de fechas"
+      ],
+      "keywords": ["horario", "hora", "días", "disponibilidad", "fechas", "cuándo"],
+      "response": {
+        "text": "Los horarios disponibles aparecen al seleccionar una ruta y una fecha. La disponibilidad depende de cada ruta y puede cambiar. Te recomendamos reservar con anticipación.",
+        "authRequired": false
+      }
+    },
+    {
+      "id": "ubicacion_empresa",
+      "categoria": "informacion",
+      "threshold": 0.64,
+      "utterances": [
+        "dónde están ubicados",
+        "cómo llego",
+        "dirección de la empresa",
+        "dónde se hace la cabalgata",
+        "punto de encuentro"
+      ],
+      "keywords": ["ubicación", "dirección", "cómo llegar", "dónde", "lugar", "salento"],
+      "response": {
+        "text": "Estamos en Salento, Quindío, Colombia. Al reservar recibirás las instrucciones exactas del punto de encuentro para tu ruta.",
+        "authRequired": false
+      }
+    },
+    {
+      "id": "requisitos_participantes",
+      "categoria": "informacion",
+      "threshold": 0.66,
+      "utterances": [
+        "hay límite de edad",
+        "cuánto peso máximo",
+        "pueden ir niños",
+        "requisitos para la cabalgata",
+        "qué necesito para participar"
+      ],
+      "keywords": ["edad", "peso", "requisitos", "niños", "restricción", "condición"],
+      "response": {
+        "text": "Los requisitos pueden variar por ruta. En general, los menores deben ir acompañados de un adulto. Consulta el detalle de la ruta específica para ver si hay restricciones de edad o peso.",
+        "authRequired": false
+      }
+    },
+    {
+      "id": "politica_reembolsos",
+      "categoria": "informacion",
+      "threshold": 0.68,
+      "utterances": [
+        "me devuelven el dinero si cancelo",
+        "política de reembolso",
+        "si cancelo me pagan",
+        "devolución de dinero",
+        "reembolso por cancelación"
+      ],
+      "keywords": ["reembolso", "devolver", "dinero", "cancelar", "pago", "devolución"],
+      "response": {
+        "text": "Nuestra política de reembolsos depende del tiempo de anticipación con que canceles. Para más detalles, consulta los términos y condiciones de la reserva o contáctanos directamente.",
+        "authRequired": false
+      }
+    },
+    {
+      "id": "contacto_soporte",
+      "categoria": "soporte",
+      "threshold": 0.64,
+      "utterances": [
+        "cómo los contacto",
+        "número de teléfono",
+        "correo de soporte",
+        "hablar con alguien",
+        "atención al cliente"
+      ],
+      "keywords": ["contacto", "teléfono", "correo", "soporte", "ayuda", "atención", "whatsapp"],
+      "response": {
+        "text": "Puedes contactarnos a través del correo o WhatsApp que aparece en la sección de información de la app. Respondemos en horario de atención (lunes a sábado).",
+        "authRequired": false
+      }
+    }
+  ]
+}

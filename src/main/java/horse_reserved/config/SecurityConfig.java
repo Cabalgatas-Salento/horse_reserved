@@ -3,8 +3,10 @@ package horse_reserved.config;
 import horse_reserved.security.JwtAuthenticationFilter;
 import horse_reserved.security.OAuth2AuthenticationFailureHandler;
 import horse_reserved.security.OAuth2AuthenticationSuccessHandler;
+import horse_reserved.security.RateLimitFilter;
 import horse_reserved.service.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,6 +26,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -32,7 +35,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    @Value("${cors.allowed-origins:http://localhost:4200}")
+    private String allowedOrigins;
+
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final UserDetailsService userDetailsService;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
@@ -47,15 +54,24 @@ public class SecurityConfig {
                         // Endpoints públicos
                         .requestMatchers("/api/auth/**", "/oauth2/**").permitAll()
                         .requestMatchers("/api/rutas/public/**").permitAll()
+                        .requestMatchers("/api/chatbot/faq/**").permitAll()
 
                         // Endpoints que requieren autenticación
                         .requestMatchers("/api/reservaciones/**").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
+                        .requestMatchers("/api/pagos/intentos").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
+                        .requestMatchers("/api/pagos/intentos/**", "/api/pagos/transacciones/**").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
+                        .requestMatchers("/api/pagos/reembolsos").hasAnyAuthority("OPERADOR", "ADMINISTRADOR")
                         .requestMatchers("/api/salidas/**").hasAnyAuthority("OPERADOR", "ADMINISTRADOR")
 
                         // Endpoints solo para administradores
                         .requestMatchers("/api/admin/**").hasAuthority("ADMINISTRADOR")
                         .requestMatchers("/api/rutas/**").hasAuthority("ADMINISTRADOR")
                         .requestMatchers("/api/recursos/**").hasAuthority("ADMINISTRADOR")
+                        .requestMatchers("/api/pagos/metricas").hasAuthority("ADMINISTRADOR")
+
+                        // MercadoPago: webhook público (MP no envía JWT), resto autenticado
+                        .requestMatchers("/api/pagos/mp/webhook").permitAll()
+                        .requestMatchers("/api/pagos/mp/**").hasAnyAuthority("CLIENTE", "OPERADOR", "ADMINISTRADOR")
 
                         // Cualquier otra petición requiere autenticación
                         .anyRequest().authenticated()
@@ -78,7 +94,8 @@ public class SecurityConfig {
                         .failureHandler(oAuth2AuthenticationFailureHandler)
                 )
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -103,7 +120,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:4200"));
+        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

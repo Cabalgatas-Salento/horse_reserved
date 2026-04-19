@@ -1,0 +1,273 @@
+horse_reserved_reservas_solicitadas_total:
+  query: |
+    SELECT COUNT(*)::bigint AS value
+    FROM reservaciones r
+    JOIN salidas s ON s.id = r.salida_id
+    WHERE date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now());
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Total de solicitudes de reserva del mes (por fecha_programada)"
+
+horse_reserved_reservas_confirmadas_total:
+  query: |
+    SELECT COUNT(*)::bigint AS value
+    FROM reservaciones r
+    JOIN salidas s ON s.id = r.salida_id
+    WHERE r.estado IN ('reservado', 'en_curso', 'completado')
+      AND date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now());
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Reservas confirmadas del mes"
+
+horse_reserved_reservas_canceladas_total:
+  query: |
+    SELECT COUNT(*)::bigint AS value
+    FROM reservaciones r
+    JOIN salidas s ON s.id = r.salida_id
+    WHERE r.estado = 'cancelado'
+      AND date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now());
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Reservas canceladas del mes"
+
+horse_reserved_reservas_totales_total:
+  query: |
+    SELECT COUNT(*)::bigint AS value
+    FROM reservaciones r
+    JOIN salidas s ON s.id = r.salida_id
+    WHERE date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now());
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Total de reservas del mes"
+
+horse_reserved_conflictos_asignacion_reservas_total:
+  query: |
+    WITH salidas_mes AS (
+      SELECT s.id,
+             rt.min_guias,
+             rt.max_caballos,
+             COALESCE(SUM(r.num_people), 0) AS personas_reservadas,
+             (SELECT COUNT(*) FROM salida_guias sg WHERE sg.salida_id = s.id) AS guias_asignados,
+             (SELECT COUNT(*) FROM salida_caballos sc WHERE sc.salida_id = s.id) AS caballos_asignados
+      FROM salidas s
+      JOIN rutas rt ON rt.id = s.ruta_id
+      LEFT JOIN reservaciones r ON r.salida_id = s.id AND r.estado <> 'cancelado'
+      WHERE date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now())
+      GROUP BY s.id, rt.min_guias, rt.max_caballos
+    )
+    SELECT COUNT(*)::bigint AS value
+    FROM salidas_mes
+    WHERE guias_asignados < min_guias
+       OR caballos_asignados < personas_reservadas
+       OR personas_reservadas > max_caballos;
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Conflictos de asignación detectados en salidas del mes"
+
+horse_reserved_recursos_asignados_total:
+  query: |
+    WITH mes AS (
+      SELECT id
+      FROM salidas
+      WHERE date_trunc('month', fecha_programada::timestamp) = date_trunc('month', now())
+    )
+    SELECT (
+      (SELECT COUNT(*) FROM salida_caballos sc JOIN mes m ON m.id = sc.salida_id)
+      +
+      (SELECT COUNT(*) FROM salida_guias sg JOIN mes m ON m.id = sg.salida_id)
+    )::bigint AS value;
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Total de recursos asignados (caballos+guías) en salidas del mes"
+
+horse_reserved_recursos_disponibles_total:
+  query: |
+    SELECT (
+      (SELECT COUNT(*) FROM caballos WHERE is_active = true)
+      +
+      (SELECT COUNT(*) FROM guias WHERE is_active = true)
+    )::bigint AS value;
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Total de recursos activos disponibles"
+
+horse_reserved_cupos_no_usados_ruta_total:
+  query: |
+    SELECT r.id AS ruta_id,
+           COALESCE(SUM(GREATEST(rt.max_caballos - COALESCE(reservadas.personas, 0), 0)), 0)::bigint AS value
+    FROM rutas rt
+    JOIN rutas r ON r.id = rt.id
+    LEFT JOIN salidas s ON s.ruta_id = rt.id
+      AND date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now())
+    LEFT JOIN (
+      SELECT salida_id, SUM(num_people) AS personas
+      FROM reservaciones
+      WHERE estado <> 'cancelado'
+      GROUP BY salida_id
+    ) reservadas ON reservadas.salida_id = s.id
+    WHERE rt.is_active = true
+    GROUP BY r.id;
+  master: true
+  metrics:
+    - ruta_id:
+        usage: "LABEL"
+        description: "Identificador de ruta"
+    - value:
+        usage: "GAUGE"
+        description: "Cupos no usados por ruta en el mes"
+
+horse_reserved_cupos_totales_ruta_total:
+  query: |
+    SELECT rt.id AS ruta_id,
+           COALESCE(COUNT(s.id) * rt.max_caballos, 0)::bigint AS value
+    FROM rutas rt
+    LEFT JOIN salidas s ON s.ruta_id = rt.id
+      AND date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now())
+    WHERE rt.is_active = true
+    GROUP BY rt.id, rt.max_caballos;
+  master: true
+  metrics:
+    - ruta_id:
+        usage: "LABEL"
+        description: "Identificador de ruta"
+    - value:
+        usage: "GAUGE"
+        description: "Cupos totales ofertados por ruta en el mes"
+
+horse_reserved_rutas_activas_con_reserva_total:
+  query: |
+    SELECT COUNT(DISTINCT rt.id)::bigint AS value
+    FROM rutas rt
+    JOIN salidas s ON s.ruta_id = rt.id
+    JOIN reservaciones re ON re.salida_id = s.id
+    WHERE rt.is_active = true
+      AND re.estado <> 'cancelado'
+      AND date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now());
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Rutas activas usadas por al menos una reserva en el mes"
+
+horse_reserved_rutas_activas_total:
+  query: |
+    SELECT COUNT(*)::bigint AS value
+    FROM rutas
+    WHERE is_active = true;
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Total de rutas activas"
+
+horse_reserved_reservas_creadas_total:
+  query: |
+    SELECT COUNT(*)::bigint AS value
+    FROM reservaciones
+    WHERE date_trunc('month', created_at) = date_trunc('month', now());
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Reservas creadas en el mes"
+
+horse_reserved_reservas_datos_participantes_validos_total:
+  query: |
+    SELECT COUNT(*)::bigint AS value
+    FROM reservaciones r
+    JOIN (
+      SELECT p.reservacion_id,
+             COUNT(*) AS participantes,
+             COUNT(*) FILTER (
+               WHERE p.primer_nombre IS NOT NULL
+                 AND p.primer_apellido IS NOT NULL
+                 AND p.documento IS NOT NULL
+             ) AS participantes_validos
+      FROM participantes p
+      GROUP BY p.reservacion_id
+    ) agg ON agg.reservacion_id = r.id
+    WHERE date_trunc('month', r.created_at) = date_trunc('month', now())
+      AND agg.participantes = r.num_people
+      AND agg.participantes_validos = r.num_people;
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Reservas con datos de participantes completos y válidos"
+
+horse_reserved_intentos_reserva_total:
+  query: |
+    SELECT COUNT(*)::bigint AS value
+    FROM reservaciones
+    WHERE date_trunc('month', created_at) = date_trunc('month', now());
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Intentos de reserva aproximados por reservas creadas"
+
+horse_reserved_reservas_con_conflicto_disponibilidad_total:
+  query: |
+    WITH salida_conflicto AS (
+      SELECT s.id,
+             rt.min_guias,
+             rt.max_caballos,
+             COALESCE(SUM(r.num_people), 0) AS personas_reservadas,
+             (SELECT COUNT(*) FROM salida_guias sg WHERE sg.salida_id = s.id) AS guias_asignados,
+             (SELECT COUNT(*) FROM salida_caballos sc WHERE sc.salida_id = s.id) AS caballos_asignados
+      FROM salidas s
+      JOIN rutas rt ON rt.id = s.ruta_id
+      LEFT JOIN reservaciones r ON r.salida_id = s.id
+      WHERE date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now())
+      GROUP BY s.id, rt.min_guias, rt.max_caballos
+      HAVING (SELECT COUNT(*) FROM salida_guias sg WHERE sg.salida_id = s.id) < rt.min_guias
+          OR (SELECT COUNT(*) FROM salida_caballos sc WHERE sc.salida_id = s.id) < COALESCE(SUM(r.num_people), 0)
+          OR COALESCE(SUM(r.num_people), 0) > rt.max_caballos
+    )
+    SELECT COUNT(*)::bigint AS value
+    FROM reservaciones r
+    JOIN salida_conflicto c ON c.id = r.salida_id
+    WHERE date_trunc('month', r.created_at) = date_trunc('month', now());
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Reservas del mes afectadas por conflicto de disponibilidad"
+
+horse_reserved_tiempo_procesamiento_reserva_segundos_sum:
+  query: |
+    SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (confirmed_at - created_at))), 0)::double precision AS value
+    FROM reservaciones
+    WHERE confirmed_at IS NOT NULL
+      AND date_trunc('month', created_at) = date_trunc('month', now());
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Suma del tiempo de procesamiento (segundos)"
+
+horse_reserved_tiempo_procesamiento_reserva_segundos_count:
+  query: |
+    SELECT COUNT(*)::bigint AS value
+    FROM reservaciones
+    WHERE confirmed_at IS NOT NULL
+      AND date_trunc('month', created_at) = date_trunc('month', now());
+  master: true
+  metrics:
+    - value:
+        usage: "GAUGE"
+        description: "Cantidad de reservas usadas para tiempo de procesamiento"
