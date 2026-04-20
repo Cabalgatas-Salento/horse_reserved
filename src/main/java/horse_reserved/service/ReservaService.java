@@ -382,6 +382,10 @@ public class ReservaService {
         Ruta ruta = rutaRepository.findById(rutaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ruta no encontrada: " + rutaId));
 
+        if (!ruta.isActiva()) {
+            throw new BusinessRuleException("La ruta seleccionada no está disponible");
+        }
+
         LocalTime horaFin = horaInicio.plusMinutes(ruta.getDuracionMinutos());
 
         List<Caballo> caballos = caballoRepository.findDisponibles(fecha, horaInicio, horaFin);
