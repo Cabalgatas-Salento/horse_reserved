@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: alpine
+    command: ["echo", "postgres deshabilitado en produccion"]
+    restart: "no"
+
+  postgres-exporter:
+    environment:
+      DATA_SOURCE_NAME: "${NEON_DB_URL}"
+      PG_EXPORTER_EXTEND_QUERY_PATH: /etc/postgres-exporter/queries.yml
+
+  prometheus:
+    extra_hosts: []
+    volumes:
+      - ../monitoring/prometheus/prometheus.prod.yml:/etc/prometheus/prometheus.yml:ro
+      - ../monitoring/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus

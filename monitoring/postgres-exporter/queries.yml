@@ -52,22 +52,18 @@ horse_reserved_conflictos_asignacion_reservas_total:
   query: |
     WITH salidas_mes AS (
       SELECT s.id,
-             rt.min_guias,
-             rt.max_caballos,
              COALESCE(SUM(r.num_people), 0) AS personas_reservadas,
              (SELECT COUNT(*) FROM salida_guias sg WHERE sg.salida_id = s.id) AS guias_asignados,
              (SELECT COUNT(*) FROM salida_caballos sc WHERE sc.salida_id = s.id) AS caballos_asignados
       FROM salidas s
-      JOIN rutas rt ON rt.id = s.ruta_id
       LEFT JOIN reservaciones r ON r.salida_id = s.id AND r.estado <> 'cancelado'
       WHERE date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now())
-      GROUP BY s.id, rt.min_guias, rt.max_caballos
+      GROUP BY s.id
     )
     SELECT COUNT(*)::bigint AS value
     FROM salidas_mes
-    WHERE guias_asignados < min_guias
-       OR caballos_asignados < personas_reservadas
-       OR personas_reservadas > max_caballos;
+    WHERE guias_asignados < CASE WHEN personas_reservadas > 8 THEN 2 ELSE 1 END
+       OR caballos_asignados < personas_reservadas;
   master: true
   metrics:
     - value:
@@ -107,10 +103,12 @@ horse_reserved_recursos_disponibles_total:
 
 horse_reserved_cupos_no_usados_ruta_total:
   query: |
-    SELECT r.id AS ruta_id,
-           COALESCE(SUM(GREATEST(rt.max_caballos - COALESCE(reservadas.personas, 0), 0)), 0)::bigint AS value
+    SELECT rt.id AS ruta_id,
+           COALESCE(SUM(GREATEST(
+             (SELECT COUNT(*) FROM salida_caballos sc WHERE sc.salida_id = s.id)
+             - COALESCE(reservadas.personas, 0), 0
+           )), 0)::bigint AS value
     FROM rutas rt
-    JOIN rutas r ON r.id = rt.id
     LEFT JOIN salidas s ON s.ruta_id = rt.id
       AND date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now())
     LEFT JOIN (
@@ -120,7 +118,7 @@ horse_reserved_cupos_no_usados_ruta_total:
       GROUP BY salida_id
     ) reservadas ON reservadas.salida_id = s.id
     WHERE rt.is_active = true
-    GROUP BY r.id;
+    GROUP BY rt.id;
   master: true
   metrics:
     - ruta_id:
@@ -133,12 +131,15 @@ horse_reserved_cupos_no_usados_ruta_total:
 horse_reserved_cupos_totales_ruta_total:
   query: |
     SELECT rt.id AS ruta_id,
-           COALESCE(COUNT(s.id) * rt.max_caballos, 0)::bigint AS value
+           COALESCE((
+             SELECT COUNT(*)
+             FROM salidas s
+             JOIN salida_caballos sc ON sc.salida_id = s.id
+             WHERE s.ruta_id = rt.id
+               AND date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now())
+           ), 0)::bigint AS value
     FROM rutas rt
-    LEFT JOIN salidas s ON s.ruta_id = rt.id
-      AND date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now())
-    WHERE rt.is_active = true
-    GROUP BY rt.id, rt.max_caballos;
+    WHERE rt.is_active = true;
   master: true
   metrics:
     - ruta_id:
@@ -222,21 +223,21 @@ horse_reserved_intentos_reserva_total:
 
 horse_reserved_reservas_con_conflicto_disponibilidad_total:
   query: |
-    WITH salida_conflicto AS (
+    WITH salidas_agg AS (
       SELECT s.id,
-             rt.min_guias,
-             rt.max_caballos,
              COALESCE(SUM(r.num_people), 0) AS personas_reservadas,
              (SELECT COUNT(*) FROM salida_guias sg WHERE sg.salida_id = s.id) AS guias_asignados,
              (SELECT COUNT(*) FROM salida_caballos sc WHERE sc.salida_id = s.id) AS caballos_asignados
       FROM salidas s
-      JOIN rutas rt ON rt.id = s.ruta_id
       LEFT JOIN reservaciones r ON r.salida_id = s.id
       WHERE date_trunc('month', s.fecha_programada::timestamp) = date_trunc('month', now())
-      GROUP BY s.id, rt.min_guias, rt.max_caballos
-      HAVING (SELECT COUNT(*) FROM salida_guias sg WHERE sg.salida_id = s.id) < rt.min_guias
-          OR (SELECT COUNT(*) FROM salida_caballos sc WHERE sc.salida_id = s.id) < COALESCE(SUM(r.num_people), 0)
-          OR COALESCE(SUM(r.num_people), 0) > rt.max_caballos
+      GROUP BY s.id
+    ),
+    salida_conflicto AS (
+      SELECT id
+      FROM salidas_agg
+      WHERE guias_asignados < CASE WHEN personas_reservadas > 8 THEN 2 ELSE 1 END
+         OR caballos_asignados < personas_reservadas
     )
     SELECT COUNT(*)::bigint AS value
     FROM reservaciones r
