@@ -105,4 +105,16 @@ public class AuthController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.badRequest().build());
     }
+
+    /**
+     * Desactiva la cuenta del usuario autenticado (baja voluntaria).
+     * El usuario puede volver a registrarse con el mismo email en cualquier momento.
+     * DELETE /api/auth/delete-account
+     * Requiere: Bearer token válido
+     */
+    @DeleteMapping("/delete-account")
+    public ResponseEntity<Void> deleteAccount() {
+        authService.deleteAccount();
+        return ResponseEntity.noContent().build();
+    }
 }

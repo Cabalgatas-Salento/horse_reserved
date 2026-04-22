@@ -56,7 +56,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
 
-        Usuario usuario = usuarioRepository.findByEmail(email)
+        Usuario usuario = usuarioRepository.findByEmailAndIsActive(email, true)
                 .orElseThrow(() -> new IllegalStateException("Usuario no encontrado"));
 
         Map<String, Object> extraClaims = new HashMap<>();

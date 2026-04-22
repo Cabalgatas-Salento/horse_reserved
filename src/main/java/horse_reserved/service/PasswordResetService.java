@@ -46,7 +46,7 @@ public class PasswordResetService {
     @Transactional
     public void processForgotPassword(String email) {
         log.info("Solicitud de reset de contraseña para: {}", LogMaskUtil.maskEmail(email));
-        Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(email);
+        Optional<Usuario> usuarioOpt = usuarioRepository.findByEmailAndIsActive(email, true);
 
         // Salida silenciosa si el email no existe
         if (usuarioOpt.isEmpty()) {
