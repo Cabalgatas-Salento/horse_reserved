@@ -4,37 +4,37 @@ groups:
     rules:
       # 3.3.1 Gestión de reservas
       - record: hr:reservas_confirmadas_ratio:monthly
-        expr: 100 * horse_reserved_reservas_confirmadas_total / clamp_min(horse_reserved_reservas_solicitadas_total, 1)
+        expr: 100 * horse_reserved_reservas_confirmadas_total_value / clamp_min(horse_reserved_reservas_solicitadas_total_value, 1)
 
       - record: hr:reservas_canceladas_ratio:monthly
-        expr: 100 * horse_reserved_reservas_canceladas_total / clamp_min(horse_reserved_reservas_totales_total, 1)
+        expr: 100 * horse_reserved_reservas_canceladas_total_value / clamp_min(horse_reserved_reservas_totales_total_value, 1)
 
       - record: hr:conflictos_asignacion_reservas_total:monthly
-        expr: horse_reserved_conflictos_asignacion_reservas_total
+        expr: horse_reserved_conflictos_asignacion_reservas_total_value
 
       # 3.3.2 Gestión de recursos
       - record: hr:cancelacion_sobre_confirmadas_ratio:monthly
-        expr: 100 * horse_reserved_reservas_canceladas_total / clamp_min(horse_reserved_reservas_confirmadas_total, 1)
+        expr: 100 * horse_reserved_reservas_canceladas_total_value / clamp_min(horse_reserved_reservas_confirmadas_total_value, 1)
 
       - record: hr:ocupacion_recursos_ratio:monthly
-        expr: 100 * horse_reserved_recursos_asignados_total / clamp_min(horse_reserved_recursos_disponibles_total, 1)
+        expr: 100 * horse_reserved_recursos_asignados_total_value / clamp_min(horse_reserved_recursos_disponibles_total_value, 1)
 
       # 3.3.3 Gestión de rutas
       - record: hr:cupos_no_usados_ratio_por_ruta:monthly
-        expr: 100 * horse_reserved_cupos_no_usados_ruta_total / clamp_min(horse_reserved_cupos_totales_ruta_total, 1)
+        expr: 100 * horse_reserved_cupos_no_usados_ruta_total_value / clamp_min(horse_reserved_cupos_totales_ruta_total_value, 1)
 
       - record: hr:rutas_activas_utilizadas_ratio:monthly
-        expr: 100 * horse_reserved_rutas_activas_con_reserva_total / clamp_min(horse_reserved_rutas_activas_total, 1)
+        expr: 100 * horse_reserved_rutas_activas_con_reserva_total_value / clamp_min(horse_reserved_rutas_activas_total_value, 1)
 
       # 3.4.1 Calidad de reservas
       - record: hr:tiempo_promedio_procesamiento_reserva_segundos
-        expr: horse_reserved_tiempo_procesamiento_reserva_segundos_sum / clamp_min(horse_reserved_tiempo_procesamiento_reserva_segundos_count, 1)
+        expr: horse_reserved_tiempo_procesamiento_reserva_segundos_sum_value / clamp_min(horse_reserved_tiempo_procesamiento_reserva_segundos_count_value, 1)
 
       - record: hr:exactitud_datos_participantes_ratio
-        expr: 100 * horse_reserved_reservas_datos_participantes_validos_total / clamp_min(horse_reserved_reservas_creadas_total, 1)
+        expr: 100 * horse_reserved_reservas_datos_participantes_validos_total_value / clamp_min(horse_reserved_reservas_creadas_total_value, 1)
 
       - record: hr:indice_conflictos_disponibilidad_ratio
-        expr: 100 * horse_reserved_reservas_con_conflicto_disponibilidad_total / clamp_min(horse_reserved_intentos_reserva_total, 1)
+        expr: 100 * horse_reserved_reservas_con_conflicto_disponibilidad_total_value / clamp_min(horse_reserved_intentos_reserva_total_value, 1)
 
   - name: horse_reserved_quality_alerts
     interval: 1m

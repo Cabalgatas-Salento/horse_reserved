@@ -51,8 +51,8 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         log.info("Intento de registro para: {}", LogMaskUtil.maskEmail(request.getEmail()));
-        // Verificar si el email ya existe
-        if (usuarioRepository.existsByEmail(request.getEmail())) {
+        // Verificar si el email ya está en uso por una cuenta activa
+        if (usuarioRepository.existsByEmailAndIsActive(request.getEmail(), true)) {
             throw new EmailAlreadyExistsException("El email " + request.getEmail() + " ya está registrado");
         }
 
@@ -121,18 +121,12 @@ public class AuthService {
             throw new InvalidCredentialsException("Email o contraseña incorrectos");
         }
 
-        // Buscar usuario
-        Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
+        // Buscar usuario activo (puede haber registros inactivos con el mismo email)
+        Usuario usuario = usuarioRepository.findByEmailAndIsActive(request.getEmail(), true)
                 .orElseThrow(() -> {
-                    log.warn("Usuario no encontrado tras autenticación: {}", LogMaskUtil.maskEmail(request.getEmail()));
-                    return new InvalidCredentialsException("Usuario no encontrado");
+                    log.warn("Usuario activo no encontrado tras autenticación: {}", LogMaskUtil.maskEmail(request.getEmail()));
+                    return new UserInactiveException("Esta cuenta ha sido dada de baja. Para volver a acceder, crea una nueva cuenta.");
                 });
-
-        // Verificar si el usuario está activo
-        if (!usuario.getIsActive()) {
-            log.warn("Login rechazado — usuario inactivo: {}", LogMaskUtil.maskEmail(request.getEmail()));
-            throw new UserInactiveException("El usuario está inactivo. Contacte al administrador.");
-        }
 
         // Generar token JWT con claims adicionales
         Map<String, Object> extraClaims = new HashMap<>();
@@ -167,7 +161,7 @@ public class AuthService {
                 .getAuthentication()
                 .getName();
 
-        Usuario usuario = usuarioRepository.findByEmail(email)
+        Usuario usuario = usuarioRepository.findByEmailAndIsActive(email, true)
                 .orElseThrow(() -> new InvalidCredentialsException("Usuario no encontrado"));
 
         return UserProfileResponse.builder()
@@ -195,7 +189,7 @@ public class AuthService {
                 .getAuthentication()
                 .getName();
 
-        Usuario usuario = usuarioRepository.findByEmail(email)
+        Usuario usuario = usuarioRepository.findByEmailAndIsActive(email, true)
                 .orElseThrow(() -> new InvalidCredentialsException("Usuario no encontrado"));
 
         // Validación para usuarios registrados con Google OAuth2
@@ -224,5 +218,27 @@ public class AuthService {
         auditLogService.registrarExito(usuario.getId(), usuario.getEmail(),
                 AuditCategoria.CUENTA, AuditAccion.CAMBIO_PASSWORD,
                 null, null, HttpRequestUtil.obtenerIpCliente());
+    }
+
+    /**
+     * Desactiva la cuenta del usuario autenticado (baja voluntaria).
+     * El usuario no podrá iniciar sesión con esta cuenta; podrá registrarse
+     * nuevamente con el mismo email para obtener una cuenta completamente nueva.
+     */
+    @Transactional
+    public void deleteAccount() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        log.info("Solicitud de baja de cuenta para: {}", LogMaskUtil.maskEmail(email));
+
+        Usuario usuario = usuarioRepository.findByEmailAndIsActive(email, true)
+                .orElseThrow(() -> new InvalidCredentialsException("Usuario no encontrado"));
+
+        usuario.setIsActive(false);
+        usuarioRepository.save(usuario);
+
+        log.info("Baja de cuenta completada para usuario id={}", usuario.getId());
+        auditLogService.registrarExito(usuario.getId(), usuario.getEmail(),
+                AuditCategoria.CUENTA, AuditAccion.BAJA_CUENTA,
+                "USUARIO", usuario.getId(), HttpRequestUtil.obtenerIpCliente());
     }
 }

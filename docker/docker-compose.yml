@@ -18,8 +18,6 @@ services:
     image: prometheuscommunity/postgres-exporter:v0.17.1
     container_name: cabalgatas-postgres-exporter
     restart: unless-stopped
-    depends_on:
-      - postgres
     environment:
       DATA_SOURCE_NAME: postgresql://cabalgatas_user:cabalgatas_pass@postgres:5432/cabalgatas_db?sslmode=disable
       PG_EXPORTER_EXTEND_QUERY_PATH: /etc/postgres-exporter/queries.yml
@@ -34,6 +32,8 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres-exporter
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus

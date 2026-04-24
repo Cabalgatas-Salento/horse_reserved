@@ -480,7 +480,7 @@ public class ReservaService {
         if (auth == null || auth.getName() == null) {
             throw new InvalidCredentialsException("Usuario no autenticado");
         }
-        return usuarioRepository.findByEmail(auth.getName())
+        return usuarioRepository.findByEmailAndIsActive(auth.getName(), true)
                 .orElseThrow(() -> new InvalidCredentialsException("Usuario autenticado no encontrado"));
     }
 

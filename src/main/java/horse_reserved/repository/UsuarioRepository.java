@@ -36,4 +36,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
      * @return Lista de usuarios con ese estado
      */
     java.util.List<Usuario> findByIsActive(Boolean isActive);
+
+    Optional<Usuario> findByEmailAndIsActive(String email, Boolean isActive);
+
+    boolean existsByEmailAndIsActive(String email, Boolean isActive);
 }

@@ -262,7 +262,7 @@ public class PagoSimuladoService {
         if (auth == null || auth.getName() == null) {
             throw new InvalidCredentialsException("Usuario no autenticado");
         }
-        return usuarioRepo.findByEmail(auth.getName())
+        return usuarioRepo.findByEmailAndIsActive(auth.getName(), true)
                 .orElseThrow(() -> new InvalidCredentialsException("Usuario autenticado no encontrado"));
     }
 }

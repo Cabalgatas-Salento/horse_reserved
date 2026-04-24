@@ -25,7 +25,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"expr": "hr:reservas_confirmadas_ratio:monthly", "refId": "A"}],
+      "targets": [{"expr": "hr:reservas_confirmadas_ratio:monthly", "instant": true, "refId": "A"}],
       "title": "Tasa confirmación reservas",
       "type": "stat"
     },
@@ -35,7 +35,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
       "id": 2,
       "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"expr": "hr:cancelacion_sobre_confirmadas_ratio:monthly", "refId": "A"}],
+      "targets": [{"expr": "hr:cancelacion_sobre_confirmadas_ratio:monthly", "instant": true, "refId": "A"}],
       "title": "Tasa cancelación reservas",
       "type": "stat"
     },
@@ -45,7 +45,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
       "id": 3,
       "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"expr": "hr:tiempo_promedio_procesamiento_reserva_segundos", "refId": "A"}],
+      "targets": [{"expr": "hr:tiempo_promedio_procesamiento_reserva_segundos", "instant": true, "refId": "A"}],
       "title": "Tiempo promedio procesamiento",
       "type": "stat"
     },
@@ -55,8 +55,18 @@
       "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
       "id": 4,
       "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"expr": "hr:indice_conflictos_disponibilidad_ratio", "refId": "A"}],
+      "targets": [{"expr": "hr:indice_conflictos_disponibilidad_ratio", "instant": true, "refId": "A"}],
       "title": "Índice conflictos disponibilidad",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 80}, {"color": "green", "value": 90}]}}},
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 4},
+      "id": 8,
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"expr": "hr:exactitud_datos_participantes_ratio", "instant": true, "refId": "A"}],
+      "title": "Exactitud datos participantes",
       "type": "stat"
     },
     {
@@ -85,34 +95,12 @@
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
       "id": 7,
       "targets": [
-        {"expr": "horse_reserved_conflictos_asignacion_reservas_total", "legendFormat": "Conflictos asignación", "refId": "A"},
-        {"expr": "horse_reserved_reservas_canceladas_total", "legendFormat": "Reservas canceladas", "refId": "B"},
-        {"expr": "horse_reserved_reservas_confirmadas_total", "legendFormat": "Reservas confirmadas", "refId": "C"}
+        {"expr": "horse_reserved_conflictos_asignacion_reservas_total_value", "legendFormat": "Conflictos asignación", "refId": "A"},
+        {"expr": "horse_reserved_reservas_canceladas_total_value", "legendFormat": "Reservas canceladas", "refId": "B"},
+        {"expr": "horse_reserved_reservas_confirmadas_total_value", "legendFormat": "Reservas confirmadas", "refId": "C"}
       ],
       "title": "Volumen mensual de reservas",
       "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {"color": "red", "value": null},
-              {"color": "orange", "value": 80},
-              {"color": "green", "value": 90}
-            ]
-          }
-        }
-      },
-      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 4},
-      "id": 8,
-      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"expr": "hr:exactitud_datos_participantes_ratio", "refId": "A"}],
-      "title": "Exactitud datos participantes",
-      "type": "stat"
     }
   ],
   "refresh": "30s",
@@ -123,5 +111,5 @@
   "time": {"from": "now-30d", "to": "now"},
   "title": "Horse Reserved - Métricas de Calidad",
   "uid": "horse-reserved-quality",
-  "version": 1
+  "version": 2
 }
