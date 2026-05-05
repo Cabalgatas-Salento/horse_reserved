@@ -18,7 +18,7 @@ class IntentScorerTest {
         normalizer = new TextNormalizer();
     }
 
-    // ── scoreByKeywords ───────────────────────────────────────────────────
+    // ── scoreByKeywords — tests existentes (sin cambios) ─────────────────
 
     @Test
     void scoreByKeywords_coincidenciaTotal() {
@@ -50,7 +50,46 @@ class IntentScorerTest {
         assertThat(score).isEqualTo(0.0);
     }
 
-    // ── scoreByUtterances ─────────────────────────────────────────────────
+    @Test
+    void scoreByKeywords_fraseMultipalabra_detectaIniciarSesion() {
+        double score = scorer.scoreByKeywords(
+                "no puedo iniciar sesion hoy",
+                List.of("login", "iniciar sesion", "acceder", "entrar", "autenticar"));
+        assertThat(score).isGreaterThan(0.0);
+        assertThat(score).isCloseTo(1.0 / 5.0, org.assertj.core.data.Offset.offset(0.001));
+    }
+
+    @Test
+    void scoreByKeywords_fraseMultipalabra_detectaMisReservas() {
+        double score = scorer.scoreByKeywords(
+                "ver mis reservas activas",
+                List.of("mis reservas", "mias", "historial", "reservaciones"));
+        assertThat(score).isCloseTo(1.0 / 4.0, org.assertj.core.data.Offset.offset(0.001));
+    }
+
+    @Test
+    void scoreByKeywords_fraseMultipalabra_noMatchaParcial() {
+        double score = scorer.scoreByKeywords(
+                "ver reservas",
+                List.of("mis reservas"));
+        assertThat(score).isEqualTo(0.0);
+    }
+
+    @Test
+    void scoreByKeywords_fraseMultipalabra_noMatchaDentroDeOtraPalabra() {
+        double score = scorer.scoreByKeywords(
+                "necesito ayuda con logistica",
+                List.of("log"));
+        assertThat(score).isEqualTo(0.0);
+    }
+
+    @Test
+    void scoreByKeywords_variosKeywordsMultipalabra_detectaCorrectamente() {
+        double score = scorer.scoreByKeywords(
+                "quiero crear usuario nuevo",
+                List.of("registro", "registrar", "cuenta", "crear usuario", "sign up"));
+        assertThat(score).isCloseTo(1.0 / 5.0, org.assertj.core.data.Offset.offset(0.001));
+    }
 
     @Test
     void scoreByUtterances_coincidenciaExacta() {
@@ -63,7 +102,6 @@ class IntentScorerTest {
 
     @Test
     void scoreByUtterances_similitudParcialJaccard() {
-        // "como registro" vs utterance "como me registro" → intersección {como, registro} / unión {como, me, registro} = 2/3
         double score = scorer.scoreByUtterances(
                 "como registro",
                 List.of("como me registro"),
@@ -87,5 +125,32 @@ class IntentScorerTest {
                 List.of("cambiar contrasena", "ver mis reservas", "historial reservas"),
                 normalizer);
         assertThat(score).isEqualTo(1.0);
+    }
+
+    @Test
+    void scoreByUtterances_queryContieneUtterance_retornaScoreAlto() {
+        double score = scorer.scoreByUtterances(
+                "quiero cancelar mi reserva de cabalgata",
+                List.of("cancelar reserva", "anular reservacion", "quiero cancelar mi reserva"),
+                normalizer);
+        assertThat(score).isGreaterThan(0.80);
+    }
+
+    @Test
+    void scoreByUtterances_utteranceContieneQuery_retornaScoreMedioAlto() {
+        double score = scorer.scoreByUtterances(
+                "cancelar",
+                List.of("cancelar reserva", "anular reservacion"),
+                normalizer);
+        assertThat(score).isGreaterThan(0.75);
+    }
+
+    @Test
+    void scoreByUtterances_containmentSuperaJaccard_cuandoQueryEsLarga() {
+        double score = scorer.scoreByUtterances(
+                "hola buenos dias como me registro en la aplicacion",
+                List.of("como me registro"),
+                normalizer);
+        assertThat(score).isGreaterThan(0.80);
     }
 }

@@ -4,13 +4,14 @@ import org.springframework.stereotype.Component;
 
 import java.text.Normalizer;
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-@Component
 /**
  * Proporciona utilidades para normalizar texto
  * y facilitar comparaciones consistentes.
  */
+@Component
 public class TextNormalizer {
 
     /**
@@ -32,8 +33,14 @@ public class TextNormalizer {
     }
 
     /**
-     * Aplica normalización incluyendo reemplazo de sinónimos
-     * definidos por un mapa canonical -> variantes.
+     * Aplica normalización incluyendo reemplazo de sinónimos.
+     *
+     * Aspectos clave:
+     * 1. Usa regex con lookbehind/lookahead para límites de palabra,
+     *    evitando reemplazar dentro de otras palabras (ej: "log" dentro de "logistica").
+     * 2. Ordena las variantes de mayor a menor longitud antes de aplicarlas,
+     *    evitando que una variante corta consuma parte de una más larga.
+     * 3. Elimina la dependencia del orden de iteración del Map (no determinista en HashMap).
      */
     public String normalizeWithSynonyms(String text, Map<String, List<String>> synonymsByCanonical) {
         String normalized = normalizeBasic(text);
@@ -41,15 +48,31 @@ public class TextNormalizer {
             return normalized;
         }
 
+        // Construir lista plana de (variante -> canónico) para poder ordenar globalmente
+        List<Map.Entry<String, String>> replacements = new ArrayList<>();
+
         for (Map.Entry<String, List<String>> entry : synonymsByCanonical.entrySet()) {
             String canonical = normalizeBasic(entry.getKey());
+            List<String> variants = entry.getValue() == null ? Collections.emptyList() : entry.getValue();
 
-            for (String variant : entry.getValue()) {
+            for (String variant : variants) {
                 String normalizedVariant = normalizeBasic(variant);
-                if (!normalizedVariant.isBlank()) {
-                    normalized = normalized.replace(normalizedVariant, canonical);
+                if (!normalizedVariant.isBlank() && !normalizedVariant.equals(canonical)) {
+                    replacements.add(Map.entry(normalizedVariant, canonical));
                 }
             }
+        }
+
+        // Ordenar de mayor a menor longitud: procesar primero las frases más específicas
+        replacements.sort((a, b) -> b.getKey().length() - a.getKey().length());
+
+        for (Map.Entry<String, String> replacement : replacements) {
+            String variant = replacement.getKey();
+            String canonical = replacement.getValue();
+
+            // Límites de palabra seguros para texto ya normalizado [a-z0-9\s]
+            String wordBoundaryPattern = "(?<![a-z0-9])" + Pattern.quote(variant) + "(?![a-z0-9])";
+            normalized = normalized.replaceAll(wordBoundaryPattern, Matcher.quoteReplacement(canonical));
         }
 
         return normalized;
