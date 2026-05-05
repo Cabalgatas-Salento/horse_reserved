@@ -142,6 +142,77 @@ public class EmailService {
         }
     }
 
+    /**
+     * Metodo que permite enviar una notificacion al administrador cuando la cantidad de caballos es baja
+     * @param toEmail
+     * @param adminNombre
+     * @param cantidadActual
+     * @param umbralMinimo
+     */
+    @Async
+    public void sendAlertaCaballosEmail(String toEmail, String adminNombre, int cantidadActual, int umbralMinimo) {
+        String subject = "⚠️ Alerta: Baja cantidad de caballos disponibles - Horse Reserved";
+        String htmlBody = buildAlertaCaballosEmailBody(adminNombre, cantidadActual, umbralMinimo);
+        sendHtml(toEmail, subject, htmlBody, "alerta de caballos");
+    }
+
+    private String buildAlertaCaballosEmailBody(String adminNombre, int cantidadActual, int umbralMinimo) {
+        DateTimeFormatter fechaHoraFmt = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy, HH:mm", Locale.forLanguageTag("es-CO"));
+        String fechaHora = java.time.LocalDateTime.now().format(fechaHoraFmt);
+
+        return """
+            <!DOCTYPE html>
+            <html lang="es">
+            <head><meta charset="UTF-8"><title>Alerta - Horse Reserved</title></head>
+            <body style="font-family:Arial,sans-serif;background-color:#f4f4f4;margin:0;padding:20px;">
+              <div style="max-width:600px;margin:auto;">
+                <div style="background-color:#2c3e50;padding:24px;border-radius:8px 8px 0 0;text-align:center;">
+                  <h1 style="color:#ffffff;margin:0;font-size:22px;letter-spacing:1px;">Horse Reserved</h1>
+                </div>
+                <div style="background-color:#ffffff;padding:40px;border-radius:0 0 8px 8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                  <div style="background-color:#fef9e7;border-left:4px solid #f39c12;padding:16px 20px;border-radius:4px;margin-bottom:28px;">
+                    <h2 style="color:#d35400;margin:0;font-size:18px;">⚠️ Alerta de disponibilidad</h2>
+                  </div>
+                  <p style="color:#555;font-size:16px;">
+                    Hola, <strong>%s</strong>. Se ha detectado que la cantidad de caballos
+                    disponibles está por debajo del umbral mínimo establecido.
+                  </p>
+                  <table style="width:100%%;border-collapse:collapse;margin:24px 0;font-size:15px;">
+                    <tr style="background-color:#fdf2f2;">
+                      <td style="padding:12px 14px;color:#888;font-weight:bold;width:50%%;">Caballos disponibles</td>
+                      <td style="padding:12px 14px;color:#c0392b;font-weight:bold;font-size:20px;">%d</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:12px 14px;color:#888;font-weight:bold;">Umbral mínimo configurado</td>
+                      <td style="padding:12px 14px;color:#2c3e50;font-weight:bold;font-size:20px;">%d</td>
+                    </tr>
+                    <tr style="background-color:#f8f9fa;">
+                      <td style="padding:12px 14px;color:#888;font-weight:bold;">Fecha y hora de alerta</td>
+                      <td style="padding:12px 14px;color:#555;">%s</td>
+                    </tr>
+                  </table>
+                  <div style="background-color:#eaf4fb;border-left:4px solid #2980b9;padding:16px 20px;border-radius:4px;margin:24px 0;">
+                    <h3 style="color:#2c3e50;margin-top:0;font-size:15px;">Acciones recomendadas</h3>
+                    <ul style="color:#555;font-size:14px;padding-left:18px;margin:0;">
+                      <li style="margin-bottom:6px;">Verificar el estado de salud de los caballos registrados.</li>
+                      <li style="margin-bottom:6px;">Revisar si hay caballos marcados como inactivos o no disponibles.</li>
+                      <li>Considerar ajustar la disponibilidad de reservas hasta normalizar el inventario.</li>
+                    </ul>
+                  </div>
+                  <p style="color:#888;font-size:13px;">
+                    Este es un correo automático generado por el sistema. Por favor no respondas a este mensaje.
+                  </p>
+                  <hr style="border:none;border-top:1px solid #eee;margin:32px 0;">
+                  <p style="color:#aaa;font-size:12px;text-align:center;">
+                    © 2026 Horse Reserved. Todos los derechos reservados.
+                  </p>
+                </div>
+              </div>
+            </body>
+            </html>
+            """.formatted(adminNombre, cantidadActual, umbralMinimo, fechaHora);
+    }
+
     private String buildResetEmailBody(String primerNombre, String resetLink) {
         return """
                 <!DOCTYPE html>

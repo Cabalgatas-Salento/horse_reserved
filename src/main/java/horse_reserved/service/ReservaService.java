@@ -152,6 +152,13 @@ public class ReservaService {
                     ruta.getDuracionMinutos(), guiasNombres, caballosNombres);
         }
 
+        List<Caballo> disponibles = caballoRepository.findDisponibles(
+                salida.getFechaProgramada(), salida.getTiempoInicio(), salida.getTiempoFin());
+        int d = disponibles.size();
+        if(d <= 5){
+            emailService.sendAlertaCaballosEmail("bryangomez1625@gmail.com", "Bryan", d, 5);
+        }
+
         return reservaMapper.toResponse(saved);
     }
 
@@ -435,12 +442,7 @@ public class ReservaService {
         return !fecha.isAfter(LocalDate.now().plusDays(1));
     }
 
-    /**
-     * Validacion para determinar si hay suficientes cupos en la salida para realizar
-     * una reserva. El cupo maximo es el numero de caballos asignados a la salida.
-     * @param salida
-     * @param nuevosCupos
-     */
+
     private void expandirCaballosSiNecesario(Salida salida, long ocupadosBase, int personasAdicionales) {
         int maximo = (int) salida.getCaballos().stream().filter(Caballo::isActivo).count();
         int faltantes = (int)(ocupadosBase + personasAdicionales) - maximo;
@@ -456,6 +458,12 @@ public class ReservaService {
         disponibles.stream().limit(faltantes).forEach(salida::agregarCaballo);
     }
 
+    /**
+     * Validacion para determinar si hay suficientes cupos en la salida para realizar
+     * una reserva. El cupo maximo es el numero de caballos asignados a la salida.
+     * @param salida
+     * @param nuevosCupos
+     */
     private void validarCupoDisponible(Salida salida, int nuevosCupos) {
         long ocupados = reservaRepository.sumPersonasReservadasActivasBySalida(salida.getId());
         int maximo = (int) salida.getCaballos().stream().filter(Caballo::isActivo).count();
