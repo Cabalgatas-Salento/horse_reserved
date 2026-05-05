@@ -8,7 +8,14 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "transacciones")
+@Table(
+        name = "transacciones",
+        indexes = {
+                @Index(name = "idx_transacciones_estado",             columnList = "estado"),
+                @Index(name = "idx_transacciones_fecha_estado",       columnList = "fecha_transaccion, estado"),
+                @Index(name = "idx_transacciones_reservacion",        columnList = "reservacion_id")
+        }
+)
 @Getter @Setter @Builder
 @NoArgsConstructor @AllArgsConstructor
 /**
@@ -30,7 +37,8 @@ public class Transaccion {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private PagoEstado estado;
+    @Builder.Default
+    private EstadoTransaccion estado =  EstadoTransaccion.PENDIENTE;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal monto;
