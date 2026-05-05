@@ -4,6 +4,8 @@ import horse_reserved.model.chatbot.FaqIntent;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 @Component
 /**
@@ -42,19 +44,40 @@ public class IntentMatcher {
 
         for (FaqIntent intent : intents) {
 
-            String expanded = normalizer.normalizeWithSynonyms(normalized, intent.getSynonyms());
+            String expanded = normalizer.expandWithSynonyms(normalized, intent.getSynonyms());
 
-            double utteranceScore = scorer.scoreByUtterances(
+            //evaluar ambas versiones
+            double utteranceScoreOriginal = scorer.scoreByUtterances(
+                    normalized, intent.getUtterances(), normalizer);
+
+            double utteranceScoreExpanded = scorer.scoreByUtterances(
                     expanded, intent.getUtterances(), normalizer);
 
-            double keywordScore = scorer.scoreByKeywords(
+            double utteranceScore = Math.max(utteranceScoreOriginal, utteranceScoreExpanded);
+
+            double keywordScoreOriginal = scorer.scoreByKeywords(
+                    normalized, normalizeList(intent.getKeywords()));
+
+            double keywordScoreExpanded = scorer.scoreByKeywords(
                     expanded, normalizeList(intent.getKeywords()));
 
-            // Coincidencia exacta de utterance no debe ser penalizada por keywords escasos
-            double finalScore = (utteranceScore >= 1.0 - EPS)
-                    ? utteranceScore
-                    : (0.60 * utteranceScore) + (0.40 * keywordScore);
+            double keywordScore = Math.max(keywordScoreOriginal, keywordScoreExpanded);
 
+            //combinación adaptativa
+            double finalScore;
+
+            if (utteranceScore >= 0.9) {
+                finalScore = utteranceScore;
+            } else if (keywordScore >= 0.8) {
+                finalScore = keywordScore;
+            } else {
+                finalScore = Math.max(
+                        utteranceScore * 0.7 + keywordScore * 0.3,
+                        Math.max(utteranceScore, keywordScore)
+                );
+            }
+
+            //desempate
             boolean betterScore = finalScore > bestScore;
             boolean tieScore = Math.abs(finalScore - bestScore) < EPS;
 
@@ -87,4 +110,5 @@ public class IntentMatcher {
 
     public record MatchResult(FaqIntent intent, double score) {
     }
+
 }

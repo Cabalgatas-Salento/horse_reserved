@@ -22,27 +22,29 @@ public class IntentScorer {
             return 0.0;
         }
 
-        // Padding de espacios para detección de límites de palabra sin regex costosa
-        String paddedText = " " + normalizedText + " ";
+        String[] userTokens = normalizedText.split("\\s+");
+        int matchedTokens = 0;
 
-        int hits = 0;
-        int validKeywords = 0;
+        for (String token : userTokens) {
+            String paddedToken = " " + token + " ";
 
-        for (String keyword : keywords) {
-            if (keyword == null || keyword.isBlank()) continue;
-            validKeywords++;
+            boolean found = false;
+            for (String keyword : keywords) {
+                if (keyword == null || keyword.isBlank()) continue;
 
-            String normalizedKeyword = keyword.trim().toLowerCase(Locale.ROOT);
-            String paddedKeyword = " " + normalizedKeyword + " ";
+                String normalizedKeyword = keyword.trim().toLowerCase(Locale.ROOT);
+                String paddedKeyword = " " + normalizedKeyword + " ";
 
-            // Detecta tanto tokens únicos como frases multi-palabra con límite de palabra
-            if (paddedText.contains(paddedKeyword)) {
-                hits++;
+                if (paddedKeyword.contains(paddedToken) || paddedToken.contains(paddedKeyword)) {
+                    found = true;
+                    break;
+                }
             }
+
+            if (found) matchedTokens++;
         }
 
-        if (validKeywords == 0) return 0.0;
-        return (double) hits / (double) validKeywords;
+        return (double) matchedTokens / userTokens.length;
     }
 
     /**

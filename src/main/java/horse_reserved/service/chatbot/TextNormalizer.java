@@ -78,6 +78,41 @@ public class TextNormalizer {
         return normalized;
     }
 
+    public String expandWithSynonyms(String normalizedText, Map<String, List<String>> synonyms) {
+        if (normalizedText == null || normalizedText.isBlank() || synonyms == null || synonyms.isEmpty()) {
+            return normalizedText;
+        }
+
+        StringBuilder expanded = new StringBuilder(normalizedText);
+
+        // Padding para evitar falsos positivos parciales
+        String paddedText = " " + normalizedText + " ";
+
+        for (Map.Entry<String, List<String>> entry : synonyms.entrySet()) {
+            String key = entry.getKey();
+
+            if (key == null || key.isBlank()) continue;
+
+            String normalizedKey = key.trim().toLowerCase(Locale.ROOT);
+            String paddedKey = " " + normalizedKey + " ";
+
+            if (paddedText.contains(paddedKey)) {
+
+                for (String synonym : entry.getValue()) {
+                    if (synonym == null || synonym.isBlank()) continue;
+
+                    String normalizedSynonym = synonym.trim().toLowerCase(Locale.ROOT);
+
+                    if (!paddedText.contains(" " + normalizedSynonym + " ")) {
+                        expanded.append(" ").append(normalizedSynonym);
+                    }
+                }
+            }
+        }
+
+        return expanded.toString();
+    }
+
     /**
      * Construye un mapa inverso de sinónimos para acceso rápido.
      */

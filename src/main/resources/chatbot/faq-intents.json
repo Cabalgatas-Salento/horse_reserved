@@ -15,9 +15,20 @@
         "crear cuenta",
         "abrir cuenta",
         "quiero registrarme",
-        "no tengo cuenta"
+        "no tengo cuenta",
+        "cómo crear una cuenta",
+        "quiero crear una cuenta",
+        "cómo hago para registrarme",
+        "registrarme en la app",
+        "necesito una cuenta"
       ],
-      "keywords": ["registro", "registrar", "cuenta", "crear usuario", "sign up"],
+      "keywords": [
+        "registro",
+        "registrar",
+        "crear cuenta",
+        "nueva cuenta",
+        "sign up"
+      ],
       "synonyms": {
         "registrar": ["crear", "abrir", "dar de alta"],
         "cuenta": ["usuario", "perfil"]
@@ -45,9 +56,23 @@
         "cómo inicio sesión",
         "no puedo iniciar sesión",
         "hacer login",
-        "entrar a mi cuenta"
+        "entrar a mi cuenta",
+        "no puedo entrar",
+        "no me deja ingresar",
+        "no puedo acceder a mi cuenta",
+        "problemas para iniciar sesión",
+        "no puedo hacer login",
+        "cómo entrar a mi cuenta"
       ],
-      "keywords": ["login", "iniciar sesión", "acceder", "entrar", "autenticar"],
+      "keywords": [
+        "login",
+        "iniciar sesión",
+        "acceder",
+        "entrar",
+        "autenticar",
+        "ingresar",
+        "acceso cuenta"
+      ],
       "synonyms": {
         "login": ["iniciar sesión", "autenticar", "entrar"]
       },
@@ -76,7 +101,12 @@
         "quién soy",
         "datos de mi cuenta"
       ],
-      "keywords": ["perfil", "me", "cuenta", "usuario actual"],
+      "keywords": [
+        "perfil",
+        "datos cuenta",
+        "información personal",
+        "usuario actual"
+      ],
       "response": {
         "text": "Puedes ver y editar tu información personal en la sección 'Mi cuenta', disponible en el menú de la aplicación.",
         "action": {
@@ -120,9 +150,19 @@
         "olvidé mi contraseña",
         "recuperar clave",
         "restablecer password",
-        "no recuerdo mi clave"
+        "no recuerdo mi clave",
+        "se me olvidó la contraseña",
+        "no puedo entrar porque olvidé mi contraseña",
+        "cómo recuperar mi contraseña",
+        "perdí mi contraseña"
       ],
-      "keywords": ["olvidé", "recuperar", "restablecer", "token", "correo"],
+      "keywords": [
+        "olvidé contraseña",
+        "recuperar contraseña",
+        "restablecer",
+        "resetear",
+        "correo recuperación"
+      ],
       "response": {
         "text": "Sin problema. Toca '¿Olvidaste tu contraseña?' en la pantalla de ingreso, escribe tu correo y te enviaremos un enlace para restablecerla.",
         "action": {
@@ -230,9 +270,20 @@
         "crear reserva",
         "agendar cabalgata",
         "quiero reservar",
-        "apartar una cabalgata"
+        "apartar una cabalgata",
+        "como hago una reserva",
+        "quiero agendar una ruta",
+        "cómo reservar una cabalgata",
+        "reservar una ruta"
       ],
-      "keywords": ["reserva", "reservación", "agendar", "ruta", "fecha", "hora", "participantes"],
+      "keywords": [
+        "reserva",
+        "reservar",
+        "agendar",
+        "apartar",
+        "fecha reserva",
+        "hora reserva"
+      ],
       "response": {
         "text": "Para reservar: elige la ruta que quieres, selecciona la fecha, hora y número de participantes, luego completa los datos de cada persona y confirma. ¡Así de fácil!",
         "action": {
@@ -298,7 +349,8 @@
         "cancelar reserva",
         "anular reservación",
         "dar de baja reserva",
-        "quiero cancelar mi reserva"
+        "quiero cancelar mi reserva",
+        "como cancelo una reserva"
       ],
       "keywords": ["cancelar", "anular", "reserva", "reservación"],
       "response": {
@@ -316,12 +368,20 @@
       "threshold": 0.66,
       "utterances": [
         "me aparece un error",
-        "no me deja entrar",
         "la app no funciona",
-        "error al iniciar sesión",
-        "no puedo hacer la reserva"
+        "tengo un problema",
+        "me sale un fallo",
+        "la aplicación falla",
+        "no funciona la app",
+        "error en la aplicación"
       ],
-      "keywords": ["error", "problema", "falla", "no funciona", "no puedo"],
+      "keywords": [
+        "error",
+        "problema",
+        "falla",
+        "no funciona",
+        "bug"
+      ],
       "response": {
         "text": "Si tienes un problema, prueba estos pasos: 1) Verifica tu conexión a internet. 2) Cierra y vuelve a abrir la app. 3) Si el error persiste al iniciar sesión, usa '¿Olvidaste tu contraseña?' para recuperar el acceso. 4) Contáctanos si el problema continúa.",
         "authRequired": false
