@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -15,8 +17,9 @@ import lombok.NoArgsConstructor;
  * como navegación o llamadas a API.
  */
 public class Action {
-    private String type;        // "API_CALL", "NAVIGATION", etc.
+    private String type;        // NAVIGATION, API_CALL, CHAT_FLOW, BUTTONS
     private String endpoint;
-    private String method;      // GET, POST
+    private String method;
     private boolean authRequired;
+    private Map<String, Object> payload;
 }

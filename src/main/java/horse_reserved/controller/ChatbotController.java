@@ -19,17 +19,18 @@ public class ChatbotController {
     }
 
     /**
-     * Endpoint principal para consultar el chatbot.
-     * Recibe una pregunta y retorna la respuesta generada.
+     * Único endpoint del chatbot.
+     * Acepta preguntas FAQ y, si el usuario está autenticado, inicia o continúa
+     * el flujo conversacional de creación de reserva.
+     *
+     * La validación de {@link ChatbotQueryRequest#hasMessageOrPayload()} garantiza
+     * que llegue al menos pregunta o payload (no ambos obligatorios).
      */
     @PostMapping("/ask")
     public ResponseEntity<ChatbotAnswerResponse> ask(@Valid @RequestBody ChatbotQueryRequest request) {
-        return ResponseEntity.ok(chatbotService.answer(request.getQuestion()));
+        return ResponseEntity.ok(chatbotService.answer(request));
     }
 
-    /**
-     * Endpoint de verificación de estado del servicio.
-     */
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("ok");
