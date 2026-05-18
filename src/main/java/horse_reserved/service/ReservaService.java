@@ -3,6 +3,8 @@ package horse_reserved.service;
 import horse_reserved.dto.request.CreateReservaRequest;
 import horse_reserved.dto.request.ParticipanteRequest;
 import horse_reserved.dto.request.UpdateReservaRequest;
+import horse_reserved.dto.response.HorarioSlotDTO;
+import horse_reserved.dto.response.HorariosDisponiblesResponse;
 import horse_reserved.dto.response.ReservaResponse;
 import horse_reserved.exception.*;
 import horse_reserved.model.*;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -42,6 +45,10 @@ public class ReservaService {
     private final ReservaMapper reservaMapper;
     private final EmailService emailService;
     private final AuditLogService auditLogService;
+
+    private static final LocalTime HORA_INICIO_MIN    = LocalTime.of(5, 0);
+    private static final LocalTime HORA_INICIO_MAX    = LocalTime.of(18, 0);
+    private static final int       INTERVALO_MINUTOS  = 30;
 
     @PersistenceContext
     private EntityManager em;
@@ -439,7 +446,6 @@ public class ReservaService {
      * Validacion para determinar si hay suficientes cupos en la salida para realizar
      * una reserva. El cupo maximo es el numero de caballos asignados a la salida.
      * @param salida
-     * @param nuevosCupos
      */
     private void expandirCaballosSiNecesario(Salida salida, long ocupadosBase, int personasAdicionales) {
         int maximo = (int) salida.getCaballos().stream().filter(Caballo::isActivo).count();
@@ -514,5 +520,84 @@ public class ReservaService {
 
     private boolean esOperador(Usuario u) {
         return u.getRole() == Rol.OPERADOR;
+    }
+
+    /**
+     * methodo que permite obtener los horarios disponibles para realizar una reserva para
+     * una ruta y una fecha especificas
+     * @param rutaId
+     * @param fecha
+     * @param cantPersonas
+     * @return
+     */
+    @Transactional(readOnly = true)
+    public HorariosDisponiblesResponse obtenerHorariosDisponibles(
+            Long rutaId, LocalDate fecha, int cantPersonas) {
+
+        //Validar fecha mínima (+1 día)
+        if (!fecha.isAfter(LocalDate.now())) {
+            throw new BusinessRuleException(
+                    "La fecha de reserva debe ser al menos 1 día después de hoy");
+        }
+
+        //Verificar que la ruta exista y esté activa
+        Ruta ruta = rutaRepository.findById(rutaId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Ruta no encontrada con id: " + rutaId));
+
+        if (!ruta.isActiva()) {
+            throw new BusinessRuleException(
+                    "La ruta con id " + rutaId + " no está activa");
+        }
+
+        //Generar slots de 05:00 a 18:00 cada INTERVALO_MINUTOS
+        List<HorarioSlotDTO> disponibles = new ArrayList<>();
+        LocalTime horaActual = HORA_INICIO_MIN;
+
+        while (!horaActual.isAfter(HORA_INICIO_MAX)) {
+            LocalTime horaFin = horaActual.plusMinutes(ruta.getDuracionMinutos());
+
+            int cupos = calcularCuposParaSlot(rutaId, fecha, horaActual, horaFin);
+
+            if (cupos >= cantPersonas) {
+                disponibles.add(new HorarioSlotDTO(horaActual, horaFin, cupos));
+            }
+
+            horaActual = horaActual.plusMinutes(INTERVALO_MINUTOS);
+        }
+
+        return new HorariosDisponiblesResponse(rutaId, fecha, cantPersonas, disponibles);
+    }
+
+    /**
+     * methodo auxiliar para calcular la cantidad de cupos disponibles en una franja horaria,
+     * con el fin de determinar si debe mostrarse como un horario disponible al recibir una
+     * solicitud para ver los horarios disponibles
+     * @param rutaId
+     * @param fecha
+     * @param horaInicio
+     * @param horaFin
+     * @return
+     */
+    private int calcularCuposParaSlot(
+            Long rutaId, LocalDate fecha, LocalTime horaInicio, LocalTime horaFin) {
+
+        return salidaRepository
+                .findProgramadaByRutaAndFechaAndHora(rutaId, fecha, horaInicio)
+                .map(salida -> {
+                    // Salida ya programada: usar sus caballos activos y ocupados reales
+                    long capacidad = salida.getCaballos().stream()
+                            .filter(Caballo::isActivo)
+                            .count();
+                    long ocupados = reservaRepository
+                            .sumPersonasReservadasActivasBySalida(salida.getId());
+                    return (int) Math.max(0L, capacidad - ocupados);
+                })
+                .orElseGet(() -> {
+                    // Sin salida programada: evaluar caballos libres en esa franja
+                    return caballoRepository
+                            .findDisponibles(fecha, horaInicio, horaFin)
+                            .size();
+                });
     }
 }

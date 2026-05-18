@@ -2,14 +2,17 @@ package horse_reserved.controller;
 
 import horse_reserved.dto.request.CreateReservaRequest;
 import horse_reserved.dto.request.UpdateReservaRequest;
+import horse_reserved.dto.response.HorariosDisponiblesResponse;
 import horse_reserved.dto.response.ReservaResponse;
 import horse_reserved.service.ReservaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -77,5 +80,18 @@ public class ReservaController {
     @PreAuthorize("hasAnyAuthority('CLIENTE', 'OPERADOR')")
     public ResponseEntity<ReservaResponse> cancelar(@PathVariable Long id) {
         return ResponseEntity.ok(reservaService.cancelarReserva(id));
+    }
+
+
+    @GetMapping("/horarios-disponibles")
+    public ResponseEntity<HorariosDisponiblesResponse> obtenerHorariosDisponibles(
+            @RequestParam                                              Long      rutaId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            @RequestParam(defaultValue = "1")                          int       cantPersonas) {
+
+        HorariosDisponiblesResponse respuesta =
+                reservaService.obtenerHorariosDisponibles(rutaId, fecha, cantPersonas);
+
+        return ResponseEntity.ok(respuesta);
     }
 }
