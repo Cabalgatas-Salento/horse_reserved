@@ -21,8 +21,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Manejador global de excepciones para la aplicación
- * Intercepta todas las excepciones y retorna respuestas HTTP apropiadas
+ * Manejador global de excepciones para la aplicación.
+ * Intercepta todas las excepciones y retorna respuestas HTTP apropiadas.
  */
 @Slf4j
 @RestControllerAdvice
@@ -31,179 +31,138 @@ public class GlobalExceptionHandler {
 
     private final AuditLogService auditLogService;
 
-    /**
-     * Maneja la excepción cuando un email ya existe
-     */
+    // =========================================================================
+    // Autenticación general
+    // =========================================================================
+
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handleEmailAlreadyExists(
-            EmailAlreadyExistsException ex,
-            WebRequest request) {
+            EmailAlreadyExistsException ex, WebRequest request) {
 
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.CONFLICT.value())
-                .error("Conflict")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+        return buildErrorResponse(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request);
     }
 
-    /**
-     * Maneja las excepciones de credenciales inválidas
-     */
     @ExceptionHandler({InvalidCredentialsException.class, BadCredentialsException.class})
     public ResponseEntity<ErrorResponse> handleInvalidCredentials(
-            Exception ex,
-            WebRequest request) {
+            Exception ex, WebRequest request) {
 
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.UNAUTHORIZED.value())
-                .error("Unauthorized")
-                .message("Email o contraseña incorrectos")
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Unauthorized",
+                "Email o contraseña incorrectos", request);
     }
 
-    /**
-     * Maneja la excepción cuando un token de restablecimiento es inválido o expirado
-     */
     @ExceptionHandler(InvalidTokenException.class)
     public ResponseEntity<ErrorResponse> handleInvalidToken(
-            InvalidTokenException ex,
-            WebRequest request) {
+            InvalidTokenException ex, WebRequest request) {
 
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Bad Request")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), request);
     }
 
-    /**
-     * Maneja la excepción cuando un usuario está inactivo
-     */
     @ExceptionHandler(UserInactiveException.class)
     public ResponseEntity<ErrorResponse> handleUserInactive(
-            UserInactiveException ex,
-            WebRequest request) {
+            UserInactiveException ex, WebRequest request) {
 
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.FORBIDDEN.value())
-                .error("Forbidden")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage(), request);
     }
 
-    /**
-     * Maneja errores de validación de datos de entrada
-     */
+    // =========================================================================
+    // 2FA
+    // =========================================================================
+
+    @ExceptionHandler(InvalidOrExpiredTwoFactorCodeException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidTwoFactor(
+            InvalidOrExpiredTwoFactorCodeException ex, WebRequest request) {
+
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Unauthorized", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(TwoFactorChallengeBlockedException.class)
+    public ResponseEntity<ErrorResponse> handleTwoFactorBlocked(
+            TwoFactorChallengeBlockedException ex, WebRequest request) {
+
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(TwoFactorResendNotAllowedException.class)
+    public ResponseEntity<ErrorResponse> handleTwoFactorResendNotAllowed(
+            TwoFactorResendNotAllowedException ex, WebRequest request) {
+
+        return buildErrorResponse(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests",
+                ex.getMessage(), request);
+    }
+
+    // =========================================================================
+    // Validación y recursos
+    // =========================================================================
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationExceptions(
-            MethodArgumentNotValidException ex,
-            WebRequest request) {
+            MethodArgumentNotValidException ex, WebRequest request) {
 
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
+            String fieldName     = ((FieldError) error).getField();
+            String errorMessage  = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
         });
 
         Map<String, Object> response = new HashMap<>();
         response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Bad Request");
-        response.put("message", "Error de validación");
-        response.put("errors", errors);
-        response.put("path", request.getDescription(false).replace("uri=", ""));
+        response.put("status",    HttpStatus.BAD_REQUEST.value());
+        response.put("error",     "Bad Request");
+        response.put("message",   "Error de validación");
+        response.put("errors",    errors);
+        response.put("path",      request.getDescription(false).replace("uri=", ""));
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
-    /**
-     * Maneja cualquier otra excepción no contemplada
-     */
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(
-            Exception ex,
-            WebRequest request) {
-
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .error("Internal Server Error")
-                .message("Ha ocurrido un error interno en el servidor")
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        ex.printStackTrace();
-        auditLogService.registrarErrorSistema(
-                ex.getClass().getSimpleName() + ": " + ex.getMessage(),
-                HttpRequestUtil.obtenerIpCliente());
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-    }
-
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(
-            ResourceNotFoundException ex,
-            WebRequest request) {
+            ResourceNotFoundException ex, WebRequest request) {
 
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.NOT_FOUND.value())
-                .error("Not Found")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request);
     }
 
     @ExceptionHandler(RecaptchaVerificationException.class)
     public ResponseEntity<ErrorResponse> handleRecaptcha(
-            RecaptchaVerificationException ex,
-            WebRequest request) {
+            RecaptchaVerificationException ex, WebRequest request) {
 
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Bad Request")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), request);
     }
 
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(
-            BusinessRuleException ex,
-            WebRequest request) {
+            BusinessRuleException ex, WebRequest request) {
 
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Business Rule Violation")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Business Rule Violation",
+                ex.getMessage(), request);
     }
+
+    @ExceptionHandler(AccessDeniedBusinessException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedBusiness(
+            AccessDeniedBusinessException ex, WebRequest request) {
+
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParam(
+            MissingServletRequestParameterException ex, WebRequest request) {
+
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadable(
+            HttpMessageNotReadableException ex, WebRequest request) {
+
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request",
+                "Cuerpo de la solicitud inválido o ausente", request);
+    }
+
+    // =========================================================================
+    // Excepciones de tipo genérico (mantener al final para no solapar)
+    // =========================================================================
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, String>> handleIllegalState(IllegalStateException ex) {
@@ -223,52 +182,34 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", ex.getMessage()));
     }
 
-    @ExceptionHandler(AccessDeniedBusinessException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDeniedBusiness(
-            AccessDeniedBusinessException ex,
-            WebRequest request) {
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGenericException(
+            Exception ex, WebRequest request) {
 
-        ErrorResponse error = ErrorResponse.builder()
+        log.error("Error no controlado: {}", ex.getMessage(), ex);
+        auditLogService.registrarErrorSistema(
+                ex.getClass().getSimpleName() + ": " + ex.getMessage(),
+                HttpRequestUtil.obtenerIpCliente());
+
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error",
+                "Ha ocurrido un error interno en el servidor", request);
+    }
+
+    // =========================================================================
+    // Helper privado compartido
+    // =========================================================================
+
+    private ResponseEntity<ErrorResponse> buildErrorResponse(
+            HttpStatus status, String error, String message, WebRequest request) {
+
+        ErrorResponse body = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
-                .status(HttpStatus.FORBIDDEN.value())
-                .error("Forbidden")
-                .message(ex.getMessage())
+                .status(status.value())
+                .error(error)
+                .message(message)
                 .path(request.getDescription(false).replace("uri=", ""))
                 .build();
 
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+        return ResponseEntity.status(status).body(body);
     }
-
-    @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<ErrorResponse> handleMissingParam(
-            MissingServletRequestParameterException ex,
-            WebRequest request) {
-
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Bad Request")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-    }
-
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleUnreadable(
-            HttpMessageNotReadableException ex,
-            WebRequest request) {
-
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Bad Request")
-                .message("Cuerpo de la solicitud inválido o ausente")
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-    }
-
 }

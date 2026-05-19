@@ -17,6 +17,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import horse_reserved.dto.request.ResendTwoFactorRequest;
+import horse_reserved.dto.request.VerifyTwoFactorRequest;
+import horse_reserved.dto.response.ResendTwoFactorResponse;
+import horse_reserved.dto.response.TwoFactorChallengeResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -45,10 +51,58 @@ public class AuthController {
      * POST /api/auth/login
      */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        recaptchaService.verify(request.getRecaptchaToken());
-        AuthResponse response = authService.login(request);
+    public ResponseEntity<TwoFactorChallengeResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest) {
+
+        String ip = resolveClientIp(httpRequest);
+        TwoFactorChallengeResponse response = authService.loginStep1(request, ip);
+        // 202 Accepted: la autenticación está en progreso, se requiere acción adicional
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    /**
+     * endpoint para la verificacion en 2 pasos
+     * @param request
+     * @param httpRequest
+     * @return
+     */
+    @PostMapping("/login/verify-2fa")
+    public ResponseEntity<AuthResponse> verifyTwoFactor(
+            @Valid @RequestBody VerifyTwoFactorRequest request,
+            HttpServletRequest httpRequest) {
+
+        String ip = resolveClientIp(httpRequest);
+        AuthResponse response = authService.verifyTwoFactor(request, ip);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * endpoint para el reenvio del codigo de verificacion en 2 pasos
+     * @param request
+     * @param httpRequest
+     * @return
+     */
+    @PostMapping("/login/resend-2fa")
+    public ResponseEntity<ResendTwoFactorResponse> resendTwoFactor(
+            @Valid @RequestBody ResendTwoFactorRequest request,
+            HttpServletRequest httpRequest) {
+
+        String ip = resolveClientIp(httpRequest);
+        ResendTwoFactorResponse response = authService.resendTwoFactor(request, ip);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Extrae la IP real del cliente respetando proxies inversos.
+     * Toma solo el primer valor de X-Forwarded-For para evitar spoofing.
+     */
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 
     /**

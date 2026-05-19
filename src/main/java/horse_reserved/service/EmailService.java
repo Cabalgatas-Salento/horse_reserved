@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Servicio para el envío de correos electrónicos transaccionales
+ * Servicio para el envío de correos electrónicos transaccionales.
  */
 @Service
 @RequiredArgsConstructor
@@ -35,36 +35,46 @@ public class EmailService {
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
+    // =========================================================================
+    // 2FA — OTP de login
+    // =========================================================================
+
+    /**
+     * Envía el OTP de verificación al inicio de sesión de forma asíncrona.
+     *
+     * @param toEmail        Dirección del destinatario
+     * @param primerNombre   Nombre para personalizar el saludo
+     * @param otp            Código OTP en texto plano (NUNCA hashear antes de pasar)
+     * @param validosMinutos Minutos de vigencia del código
+     */
+    @Async
+    public void sendOtpLoginEmail(String toEmail,
+                                  String primerNombre,
+                                  String otp,
+                                  int validosMinutos) {
+        String subject  = "Código de verificación - Horse Reserved";
+        String htmlBody = buildOtpLoginEmailBody(primerNombre, otp, validosMinutos);
+        sendHtml(toEmail, subject, htmlBody, "OTP de login");
+    }
+
+    // =========================================================================
+    // Restablecimiento de contraseña
+    // =========================================================================
+
     /**
      * Envía el correo de restablecimiento de contraseña de forma asíncrona.
-     * El @Async evita bloquear el hilo HTTP mientras el SMTP responde.
-     *
-     * @param toEmail      Dirección del destinatario
-     * @param primerNombre Nombre del usuario para personalizar el saludo
-     * @param token        UUID del token de restablecimiento
      */
     @Async
     public void sendPasswordResetEmail(String toEmail, String primerNombre, String token) {
         String resetLink = frontendUrl + "/auth/reset-password?token=" + token;
-        String subject = "Restablecer contraseña - Horse Reserved";
-        String htmlBody = buildResetEmailBody(primerNombre, resetLink);
-
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(fromAddress);
-            helper.setTo(toEmail);
-            helper.setSubject(subject);
-            helper.setText(htmlBody, true);
-
-            mailSender.send(message);
-            log.info("Correo de restablecimiento enviado a: {}", toEmail);
-        } catch (MessagingException | MailException e) {
-            // Se loguea el error pero NO se propaga: el endpoint ya devolvió 200.
-            // Un fallo de SMTP no debe revelar al cliente si el email existe.
-            log.error("Error al enviar correo de restablecimiento a {}: {}", toEmail, e.getMessage());
-        }
+        String subject   = "Restablecer contraseña - Horse Reserved";
+        String htmlBody  = buildResetEmailBody(primerNombre, resetLink);
+        sendHtml(toEmail, subject, htmlBody, "restablecimiento de contraseña");
     }
+
+    // =========================================================================
+    // Reservas
+    // =========================================================================
 
     @Async
     public void sendReservaConfirmacionEmail(
@@ -72,10 +82,10 @@ public class EmailService {
             String rutaNombre, LocalDate fecha, LocalTime horaInicio, LocalTime horaFin,
             int cantPersonas, BigDecimal precioUnitario, BigDecimal precioTotal,
             List<String> participantesNombres) {
-        String subject = "Reserva confirmada #" + reservaId + " - Horse Reserved";
-        String htmlBody = buildResumenEmailBody("¡Tu reserva está confirmada!", clienteNombre, reservaId,
-                rutaNombre, fecha, horaInicio, horaFin, cantPersonas, precioUnitario, precioTotal,
-                participantesNombres);
+        String subject  = "Reserva confirmada #" + reservaId + " - Horse Reserved";
+        String htmlBody = buildResumenEmailBody("¡Tu reserva está confirmada!", clienteNombre,
+                reservaId, rutaNombre, fecha, horaInicio, horaFin, cantPersonas,
+                precioUnitario, precioTotal, participantesNombres);
         sendHtml(toEmail, subject, htmlBody, "confirmación de reserva");
     }
 
@@ -85,10 +95,10 @@ public class EmailService {
             String rutaNombre, LocalDate fecha, LocalTime horaInicio, LocalTime horaFin,
             int cantPersonas, BigDecimal precioUnitario, BigDecimal precioTotal,
             List<String> participantesNombres) {
-        String subject = "Reserva actualizada #" + reservaId + " - Horse Reserved";
-        String htmlBody = buildResumenEmailBody("Tu reserva ha sido actualizada", clienteNombre, reservaId,
-                rutaNombre, fecha, horaInicio, horaFin, cantPersonas, precioUnitario, precioTotal,
-                participantesNombres);
+        String subject  = "Reserva actualizada #" + reservaId + " - Horse Reserved";
+        String htmlBody = buildResumenEmailBody("Tu reserva ha sido actualizada", clienteNombre,
+                reservaId, rutaNombre, fecha, horaInicio, horaFin, cantPersonas,
+                precioUnitario, precioTotal, participantesNombres);
         sendHtml(toEmail, subject, htmlBody, "actualización de reserva");
     }
 
@@ -98,10 +108,10 @@ public class EmailService {
             String rutaNombre, String rutaDescripcion,
             LocalDate fecha, LocalTime horaInicio, LocalTime horaFin, int duracionMinutos,
             List<String> guiasNombres, List<String> caballosNombres) {
-        String subject = "Programación de tu salida #" + reservaId + " - Horse Reserved";
-        String htmlBody = buildProgramacionEmailBody("Programación de tu salida", clienteNombre, reservaId,
-                rutaNombre, rutaDescripcion, fecha, horaInicio, horaFin, duracionMinutos,
-                guiasNombres, caballosNombres);
+        String subject  = "Programación de tu salida #" + reservaId + " - Horse Reserved";
+        String htmlBody = buildProgramacionEmailBody("Programación de tu salida", clienteNombre,
+                reservaId, rutaNombre, rutaDescripcion, fecha, horaInicio, horaFin,
+                duracionMinutos, guiasNombres, caballosNombres);
         sendHtml(toEmail, subject, htmlBody, "programación de salida");
     }
 
@@ -111,10 +121,10 @@ public class EmailService {
             String rutaNombre, String rutaDescripcion,
             LocalDate fecha, LocalTime horaInicio, LocalTime horaFin, int duracionMinutos,
             List<String> guiasNombres, List<String> caballosNombres) {
-        String subject = "Programación actualizada de tu salida #" + reservaId + " - Horse Reserved";
-        String htmlBody = buildProgramacionEmailBody("Programación actualizada de tu salida", clienteNombre,
-                reservaId, rutaNombre, rutaDescripcion, fecha, horaInicio, horaFin, duracionMinutos,
-                guiasNombres, caballosNombres);
+        String subject  = "Programación actualizada de tu salida #" + reservaId + " - Horse Reserved";
+        String htmlBody = buildProgramacionEmailBody("Programación actualizada de tu salida",
+                clienteNombre, reservaId, rutaNombre, rutaDescripcion, fecha, horaInicio,
+                horaFin, duracionMinutos, guiasNombres, caballosNombres);
         sendHtml(toEmail, subject, htmlBody, "programación actualizada de salida");
     }
 
@@ -122,10 +132,15 @@ public class EmailService {
     public void sendReservaCancelacionEmail(
             String toEmail, String clienteNombre, Long reservaId,
             String rutaNombre, LocalDate fecha, LocalTime horaInicio, LocalTime horaFin) {
-        String subject = "Reserva cancelada #" + reservaId + " - Horse Reserved";
-        String htmlBody = buildCancelacionEmailBody(clienteNombre, reservaId, rutaNombre, fecha, horaInicio, horaFin);
+        String subject  = "Reserva cancelada #" + reservaId + " - Horse Reserved";
+        String htmlBody = buildCancelacionEmailBody(clienteNombre, reservaId, rutaNombre,
+                fecha, horaInicio, horaFin);
         sendHtml(toEmail, subject, htmlBody, "cancelación de reserva");
     }
+
+    // =========================================================================
+    // Envío genérico interno
+    // =========================================================================
 
     private void sendHtml(String toEmail, String subject, String htmlBody, String tipo) {
         try {
@@ -140,6 +155,66 @@ public class EmailService {
         } catch (MessagingException | MailException e) {
             log.error("Error al enviar correo de {} a {}: {}", tipo, toEmail, e.getMessage());
         }
+    }
+
+    // =========================================================================
+    // Constructores de HTML
+    // =========================================================================
+
+    private String buildOtpLoginEmailBody(String primerNombre, String otp, int validosMinutos) {
+        return """
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Verificación de inicio de sesión</title>
+                </head>
+                <body style="font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px;">
+                    <div style="max-width: 560px; margin: auto; background-color: #ffffff;
+                                border-radius: 8px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <div style="background-color: #2c3e50; padding: 20px; border-radius: 6px 6px 0 0;
+                                    text-align: center; margin: -40px -40px 32px -40px;">
+                            <h1 style="color: #ffffff; margin: 0; font-size: 20px; letter-spacing: 1px;">
+                                Horse Reserved
+                            </h1>
+                        </div>
+                        <h2 style="color: #2c3e50; margin-top: 0;">Verificación de inicio de sesión</h2>
+                        <p style="color: #555; font-size: 16px;">
+                            Hola, <strong>%s</strong>.
+                        </p>
+                        <p style="color: #555; font-size: 16px;">
+                            Usa el siguiente código para completar tu inicio de sesión:
+                        </p>
+                        <div style="text-align: center; margin: 32px 0;">
+                            <span style="
+                                font-size: 38px;
+                                font-weight: bold;
+                                letter-spacing: 14px;
+                                color: #2980b9;
+                                background-color: #eaf4fb;
+                                padding: 14px 28px;
+                                border-radius: 6px;
+                                display: inline-block;
+                                border: 1px solid #d0e9f7;">%s</span>
+                        </div>
+                        <p style="color: #555; font-size: 15px; text-align: center;">
+                            Este código es válido por <strong>%d minuto(s)</strong>.
+                        </p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 28px 0;">
+                        <p style="color: #e74c3c; font-size: 13px;">
+                            <strong>⚠ Si no reconoces este intento de inicio de sesión</strong>, ignora este mensaje
+                            y considera cambiar tu contraseña de inmediato. Nadie de Horse Reserved
+                            te pedirá este código por teléfono o chat.
+                        </p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 28px 0;">
+                        <p style="color: #aaa; font-size: 12px; text-align: center;">
+                            © 2026 Horse Reserved. Todos los derechos reservados.
+                        </p>
+                    </div>
+                </body>
+                </html>
+                """.formatted(primerNombre, otp, validosMinutos);
     }
 
     private String buildResetEmailBody(String primerNombre, String resetLink) {
@@ -195,12 +270,14 @@ public class EmailService {
             int cantPersonas, BigDecimal precioUnitario, BigDecimal precioTotal,
             List<String> participantesNombres) {
 
-        DateTimeFormatter fechaFmt = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es-CO"));
+        DateTimeFormatter fechaFmt = DateTimeFormatter.ofPattern(
+                "d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es-CO"));
         NumberFormat precioFmt = NumberFormat.getNumberInstance(Locale.forLanguageTag("es-CO"));
 
         StringBuilder participantesHtml = new StringBuilder();
         for (String nombre : participantesNombres) {
-            participantesHtml.append("<li style=\"color:#555;font-size:15px;margin-bottom:6px;\">")
+            participantesHtml
+                    .append("<li style=\"color:#555;font-size:15px;margin-bottom:6px;\">")
                     .append(nombre).append("</li>");
         }
 
@@ -245,9 +322,7 @@ public class EmailService {
                         </tr>
                       </table>
                       <h3 style="color:#2c3e50;font-size:16px;border-bottom:2px solid #2980b9;padding-bottom:8px;">Participantes</h3>
-                      <ul style="padding-left:20px;margin:12px 0 24px 0;">
-                        %s
-                      </ul>
+                      <ul style="padding-left:20px;margin:12px 0 24px 0;">%s</ul>
                       <p style="color:#888;font-size:13px;">
                         Si tienes alguna duda o necesitas hacer cambios, contáctanos con el número de reserva.
                       </p>
@@ -278,13 +353,14 @@ public class EmailService {
             LocalDate fecha, LocalTime horaInicio, LocalTime horaFin, int duracionMinutos,
             List<String> guiasNombres, List<String> caballosNombres) {
 
-        DateTimeFormatter fechaFmt = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es-CO"));
+        DateTimeFormatter fechaFmt = DateTimeFormatter.ofPattern(
+                "d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es-CO"));
 
         String guiasHtml = guiasNombres.isEmpty()
                 ? "<li style=\"color:#555;font-size:15px;\">Por asignar</li>"
                 : guiasNombres.stream()
-                        .map(g -> "<li style=\"color:#555;font-size:15px;margin-bottom:4px;\">" + g + "</li>")
-                        .reduce("", String::concat);
+                .map(g -> "<li style=\"color:#555;font-size:15px;margin-bottom:4px;\">" + g + "</li>")
+                .reduce("", String::concat);
 
         String caballosHtml = caballosNombres.stream()
                 .map(c -> "<li style=\"color:#555;font-size:15px;margin-bottom:4px;\">" + c + "</li>")
@@ -294,8 +370,8 @@ public class EmailService {
                 ? "<p style=\"color:#555;font-size:15px;\">" + rutaDescripcion + "</p>"
                 : "";
 
-        int horas = duracionMinutos / 60;
-        int minutos = duracionMinutos % 60;
+        int horas    = duracionMinutos / 60;
+        int minutos  = duracionMinutos % 60;
         String duracionTexto = horas > 0
                 ? horas + " h" + (minutos > 0 ? " " + minutos + " min" : "")
                 : minutos + " min";
@@ -339,13 +415,9 @@ public class EmailService {
                         </tr>
                       </table>
                       <h3 style="color:#2c3e50;font-size:16px;border-bottom:2px solid #2980b9;padding-bottom:8px;">Guías asignados</h3>
-                      <ul style="padding-left:20px;margin:12px 0 24px 0;">
-                        %s
-                      </ul>
+                      <ul style="padding-left:20px;margin:12px 0 24px 0;">%s</ul>
                       <h3 style="color:#2c3e50;font-size:16px;border-bottom:2px solid #2980b9;padding-bottom:8px;">Caballos asignados</h3>
-                      <ul style="padding-left:20px;margin:12px 0 24px 0;">
-                        %s
-                      </ul>
+                      <ul style="padding-left:20px;margin:12px 0 24px 0;">%s</ul>
                       <div style="background-color:#eaf4fb;border-left:4px solid #2980b9;padding:16px 20px;border-radius:4px;margin:24px 0;">
                         <h3 style="color:#2c3e50;margin-top:0;font-size:15px;">Recomendaciones</h3>
                         <ul style="color:#555;font-size:14px;padding-left:18px;margin:0;">
@@ -364,23 +436,19 @@ public class EmailService {
                 </body>
                 </html>
                 """.formatted(
-                encabezado,
-                clienteNombre, reservaId,
-                descripcionHtml,
-                rutaNombre,
-                fecha.format(fechaFmt),
+                encabezado, clienteNombre, reservaId, descripcionHtml,
+                rutaNombre, fecha.format(fechaFmt),
                 horaInicio.format(DateTimeFormatter.ofPattern("HH:mm")),
                 horaFin.format(DateTimeFormatter.ofPattern("HH:mm")),
-                duracionTexto,
-                guiasHtml,
-                caballosHtml);
+                duracionTexto, guiasHtml, caballosHtml);
     }
 
     private String buildCancelacionEmailBody(
             String clienteNombre, Long reservaId, String rutaNombre,
             LocalDate fecha, LocalTime horaInicio, LocalTime horaFin) {
 
-        DateTimeFormatter fechaFmt = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es-CO"));
+        DateTimeFormatter fechaFmt = DateTimeFormatter.ofPattern(
+                "d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es-CO"));
 
         return """
                 <!DOCTYPE html>
@@ -415,7 +483,8 @@ public class EmailService {
                         </tr>
                       </table>
                       <p style="color:#888;font-size:13px;">
-                        Si crees que esto es un error o deseas hacer una nueva reserva, contáctanos o visita nuestra plataforma.
+                        Si crees que esto es un error o deseas hacer una nueva reserva,
+                        contáctanos o visita nuestra plataforma.
                       </p>
                       <hr style="border:none;border-top:1px solid #eee;margin:32px 0;">
                       <p style="color:#aaa;font-size:12px;text-align:center;">

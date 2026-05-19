@@ -2,12 +2,16 @@ package horse_reserved.model;
 
 public enum AuditAccion {
     // AUTENTICACION
-    LOGIN_EXITOSO,
     LOGIN_FALLIDO,
-    REGISTRO_EXITOSO,
     LOGOUT,
-    OAUTH2_LOGIN_EXITOSO,
-    OAUTH2_LOGIN_FALLIDO,
+    REGISTRO_EXITOSO,
+    LOGIN_PASO1_EXITOSO,          // Credenciales correctas; OTP enviado
+    LOGIN_2FA_OTP_ENVIADO,        // Email con OTP despachado
+    LOGIN_2FA_OTP_VERIFICADO,     // OTP correcto; JWT emitido (login completo)
+    LOGIN_2FA_OTP_FALLIDO,        // OTP incorrecto; se incrementaron intentos
+    LOGIN_2FA_CHALLENGE_BLOQUEADO,// Máximo de intentos alcanzado
+    LOGIN_2FA_CHALLENGE_EXPIRADO, // Challenge TTL vencido
+    LOGIN_2FA_OTP_REENVIADO,       // Nuevo OTP generado y enviado
 
     // RESERVA
     RESERVA_CREADA,
